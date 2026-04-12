@@ -22,7 +22,7 @@ export function TopBar({ right }: { right?: React.ReactNode }) {
           />
           <div className="min-w-0 leading-tight">
             <div className="font-semibold text-[#ac5936] truncate">Bazar do Sementinha</div>
-            <div className="text-xs text-[#0a858a] truncate">Catálogo • Retirada no TUCSA</div>
+            <div className="text-xs text-[#0a858a] truncate">Catálogo • Retirada no TUCXA2</div>
           </div>
         </Link>
 

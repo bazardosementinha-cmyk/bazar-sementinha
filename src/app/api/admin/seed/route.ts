@@ -7,7 +7,7 @@ export async function POST() {
   const gate = await requireAdmin();
   if (!gate.ok) return NextResponse.json({ error: gate.reason }, { status: 401 });
 
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
 
   const demo = [
     { title: "Camiseta (azul) - demo", category: "Roupas", condition: "Muito bom", price: 25, status: "available" },

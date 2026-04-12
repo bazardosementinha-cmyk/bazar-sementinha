@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { formatBRL, statusLabel, type ItemStatus } from "@/lib/utils";
 
 type ItemRow = {
@@ -54,6 +55,12 @@ export default function ItensPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/importar">Importar</Link>
+        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/itens">Itens</Link>
+        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/pedidos">Pedidos</Link>
+        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/relatorio">Relatório</Link>
+      </div>
       <div className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Itens</h1>

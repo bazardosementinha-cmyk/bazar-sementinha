@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const parsed = Body.safeParse(json);
   if (!parsed.success) return NextResponse.json({ error: "Payload inválido" }, { status: 400 });
 
-  const supabase = supabaseServer();
+  const supabase = await supabaseServer();
   const { error } = await supabase.from("items").update({ status: parsed.data.status }).eq("id", parsed.data.item_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

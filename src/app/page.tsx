@@ -24,7 +24,14 @@ export default async function Page() {
 
   return (
     <>
-      <TopBar right={<a href="/admin/login" className="text-sm text-slate-600 hover:text-slate-900">Admin</a>} />
+      <TopBar
+        right={
+          <div className="flex items-center gap-3">
+            <a href="/carrinho" className="text-sm text-slate-600 hover:text-slate-900">Carrinho</a>
+            <a href="/admin/login" className="text-sm text-slate-600 hover:text-slate-900">Admin</a>
+          </div>
+        }
+      />
       <Shell>
         <h1 className="text-2xl font-bold">Catálogo</h1>
         <p className="mt-1 text-slate-600">
@@ -51,7 +58,7 @@ export default async function Page() {
           <div className="font-semibold">Regras (resumo)</div>
           <ul className="mt-2 list-disc pl-5 space-y-1">
             <li>Pagamento preferencial por Pix.</li>
-            <li>Retirada combinada (TUCSA) ou no dia do bazar.</li>
+            <li>Retirada combinada (TUCXA2) ou no dia do bazar.</li>
             <li>Sem troca (conforme comunicado do bazar).</li>
           </ul>
         </div>

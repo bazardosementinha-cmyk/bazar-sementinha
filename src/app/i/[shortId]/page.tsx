@@ -3,8 +3,14 @@ import { StatusBadge } from "@/components/Badge";
 import { formatBRL } from "@/lib/utils";
 import { getItemByShortId, getItemPhotos, signedUrlsForPaths } from "@/lib/db";
 
-export default async function ItemPage({ params }: { params: { shortId: string } }) {
-  const item = await getItemByShortId(params.shortId);
+type Props = {
+  params: Promise<{ shortId: string }>;
+};
+
+export default async function ItemPage({ params }: Props) {
+  const { shortId } = await params;
+
+  const item = await getItemByShortId(shortId);
   if (!item) {
     return (
       <>
@@ -33,26 +39,33 @@ export default async function ItemPage({ params }: { params: { shortId: string }
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">{item.title}</h1>
-            <div className="mt-1 text-sm text-slate-600">{item.category} • {item.condition}{item.size ? ` • Tam.: ${item.size}` : ""}</div>
+            <div className="mt-1 text-sm text-slate-600">
+              {item.category} • {item.condition}
+              {item.size ? ` • Tam.: ${item.size}` : ""}
+            </div>
           </div>
           <StatusBadge status={item.status} />
         </div>
 
         <div className="mt-4 rounded-2xl border bg-white p-4">
           <div className="flex items-baseline gap-3">
-            {item.price_from ? <span className="text-sm text-slate-500 line-through">{formatBRL(item.price_from)}</span> : null}
+            {item.price_from ? (
+              <span className="text-sm text-slate-500 line-through">{formatBRL(item.price_from)}</span>
+            ) : null}
             <span className="text-2xl font-extrabold">{formatBRL(item.price)}</span>
           </div>
           {item.description ? <p className="mt-3 text-slate-700 whitespace-pre-line">{item.description}</p> : null}
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {signedUrls.length ? signedUrls.map((u, i) => (
-            <div key={i} className="rounded-2xl border bg-white overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={u} alt={`Foto ${i+1}`} className="w-full h-72 object-cover" />
-            </div>
-          )) : (
+          {signedUrls.length ? (
+            signedUrls.map((u, i) => (
+              <div key={i} className="rounded-2xl border bg-white overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={u} alt={`Foto ${i + 1}`} className="w-full h-72 object-cover" />
+              </div>
+            ))
+          ) : (
             <div className="rounded-2xl border bg-white p-6 text-slate-600">Sem fotos cadastradas.</div>
           )}
         </div>
@@ -70,7 +83,7 @@ export default async function ItemPage({ params }: { params: { shortId: string }
           <div className="font-semibold">Regras (resumo)</div>
           <ul className="mt-2 list-disc pl-5 space-y-1">
             <li>Pagamento preferencial por Pix.</li>
-            <li>Retirada combinada (TUCSA) ou no dia do bazar.</li>
+            <li>Retirada combinada (TUCXA2) ou no dia do bazar.</li>
             <li>Sem troca.</li>
             <li>Ao reservar: confirmar prazo e disponibilidade.</li>
           </ul>

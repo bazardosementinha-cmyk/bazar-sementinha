@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { formatBRL, statusLabel, type ItemStatus } from "@/lib/utils";
 
 type Row = { status: ItemStatus; count: number; total: number };
@@ -20,6 +21,12 @@ export default function RelatorioPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/importar">Importar</Link>
+        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/itens">Itens</Link>
+        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/pedidos">Pedidos</Link>
+        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/relatorio">Relatório</Link>
+      </div>
       <h1 className="text-2xl font-bold">Relatório (transparência)</h1>
       <p className="mt-1 text-slate-600">Resumo por status e total vendido (demo).</p>
 

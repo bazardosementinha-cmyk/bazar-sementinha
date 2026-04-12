@@ -8,13 +8,14 @@ function parseMoneyBR(raw: string): number | null {
 export function extractPricesFromCaption(caption: string): { price?: number; price_from?: number } {
   const text = caption.replace(/\s+/g, " ");
 
+  const out: { price?: number; price_from?: number } = {};
+
   // Pattern: de R$ 229,00 por R$ 115,00
   const reDePor = /de\s*R\$\s*([0-9\.\,]+)\s*por\s*R\$\s*([0-9\.\,]+)/i;
   const m1 = text.match(reDePor);
   if (m1) {
     const price_from = parseMoneyBR(m1[1]);
     const price = parseMoneyBR(m1[2]);
-    const out: any = {};
     if (price_from != null) out.price_from = price_from;
     if (price != null) out.price = price;
     return out;
@@ -25,7 +26,8 @@ export function extractPricesFromCaption(caption: string): { price?: number; pri
   const m2 = text.match(reValor);
   if (m2) {
     const price = parseMoneyBR(m2[2]);
-    return price != null ? { price } : {};
+    if (price != null) out.price = price;
+    return out;
   }
 
   // Any R$ number (take last occurrence as current price)
@@ -34,8 +36,8 @@ export function extractPricesFromCaption(caption: string): { price?: number; pri
   if (all.length) {
     const last = all[all.length - 1][1];
     const price = parseMoneyBR(last);
-    return price != null ? { price } : {};
+    if (price != null) out.price = price;
   }
 
-  return {};
+  return out;
 }

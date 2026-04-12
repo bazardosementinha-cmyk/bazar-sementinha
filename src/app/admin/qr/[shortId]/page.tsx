@@ -2,10 +2,17 @@ import { Shell, TopBar } from "@/components/Shell";
 import QRCode from "qrcode";
 import { getItemByShortId } from "@/lib/db";
 
-export default async function QrPage({ params }: { params: { shortId: string } }) {
-  const item = await getItemByShortId(params.shortId);
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const url = `${baseUrl}/i/${params.shortId}`;
+type Props = {
+  params: Promise<{ shortId: string }>;
+};
+
+export default async function QrPage({ params }: Props) {
+  const { shortId } = await params;
+
+  const item = await getItemByShortId(shortId);
+
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, "");
+  const url = `${baseUrl}/i/${shortId}`;
 
   const qrDataUrl = await QRCode.toDataURL(url, { margin: 1, width: 320 });
 
@@ -19,11 +26,13 @@ export default async function QrPage({ params }: { params: { shortId: string } }
         <div className="mt-4 rounded-2xl border bg-white p-6 flex flex-col items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={qrDataUrl} alt="QR Code" className="h-64 w-64" />
+
           <div className="text-center">
             <div className="text-sm text-slate-600">ID do item</div>
-            <div className="font-mono text-2xl font-extrabold">#{params.shortId}</div>
+            <div className="font-mono text-2xl font-extrabold">#{shortId}</div>
             <div className="mt-1 text-sm font-semibold">{item?.title ?? "Item do Bazar"}</div>
           </div>
+
           <div className="text-xs text-slate-500 break-all">{url}</div>
         </div>
 

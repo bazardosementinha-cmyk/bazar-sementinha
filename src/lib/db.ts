@@ -18,6 +18,11 @@ export type Item = {
   created_at: string;
 };
 
+export type ItemSummary = Pick<
+  Item,
+  "id" | "short_id" | "title" | "category" | "condition" | "size" | "price" | "price_from" | "status" | "created_at"
+>;
+
 export type Photo = { id: number; item_id: string; storage_path: string; position: number };
 
 export async function getPublicItems(params?: { category?: string; status?: ItemStatus | "all" }) {
@@ -27,7 +32,7 @@ export async function getPublicItems(params?: { category?: string; status?: Item
     .select("id,short_id,title,category,condition,size,price,price_from,status,created_at")
     .order("created_at", { ascending: false });
 
-  // public should see only available/reserved (and sold if you quiser manter histórico)
+  // público só vê disponíveis/reservados/vendidos (se quiser histórico)
   q = q.in("status", ["available", "reserved", "sold"]);
 
   if (params?.category && params.category !== "all") q = q.eq("category", params.category);
@@ -35,16 +40,12 @@ export async function getPublicItems(params?: { category?: string; status?: Item
 
   const { data, error } = await q;
   if (error) throw error;
-  return data as any[];
+  return (data ?? []) as ItemSummary[];
 }
 
 export async function getItemByShortId(shortId: string) {
   const supabase = supabasePublic();
-  const { data, error } = await supabase
-    .from("items")
-    .select("*")
-    .eq("short_id", shortId)
-    .maybeSingle();
+  const { data, error } = await supabase.from("items").select("*").eq("short_id", shortId).maybeSingle();
   if (error) throw error;
   return data as Item | null;
 }
@@ -60,12 +61,17 @@ export async function getItemPhotos(itemId: string) {
   return (data ?? []) as Photo[];
 }
 
-export async function signedUrlsForPaths(paths: string[], expiresInSeconds = 60 * 60) {
+export async function signedUrlsForPaths(paths: string[]) {
+  if (!paths.length) return {};
+
   const s = supabaseService();
-  const { data, error } = await s.storage.from("items").createSignedUrls(paths, expiresInSeconds);
-  if (error) throw error;
-  // data: [{ path, signedUrl }]
+  const { data, error } = await s.storage.from("items").createSignedUrls(paths, 60 * 30);
+
+  if (error || !data) return {};
+
   return data.reduce<Record<string, string>>((acc, row) => {
+    if (!row?.path) return acc;
+    if (!row?.signedUrl) return acc;
     acc[row.path] = row.signedUrl;
     return acc;
   }, {});
