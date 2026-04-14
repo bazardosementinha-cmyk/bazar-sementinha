@@ -32,11 +32,14 @@ export async function getPublicItems(params?: { category?: string; status?: Item
     .select("id,short_id,title,category,condition,size,price,price_from,status,created_at")
     .order("created_at", { ascending: false });
 
-  // público só vê disponíveis/reservados/vendidos (se quiser histórico)
-  q = q.in("status", ["available", "reserved", "sold"]);
+  // público: por padrão, só mostra itens disponíveis
+  if (params?.status && params.status !== "all") {
+    q = q.eq("status", params.status);
+  } else {
+    q = q.eq("status", "available");
+  }
 
   if (params?.category && params.category !== "all") q = q.eq("category", params.category);
-  if (params?.status && params.status !== "all") q = q.eq("status", params.status);
 
   const { data, error } = await q;
   if (error) throw error;

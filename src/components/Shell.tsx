@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { CartButton } from "@/components/CartButton";
 
 export function Shell({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={cn("mx-auto max-w-5xl px-4 py-6", className)}>{children}</div>;
@@ -26,7 +27,10 @@ export function TopBar({ right }: { right?: React.ReactNode }) {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">{right}</div>
+        <div className="flex items-center gap-2">
+          <CartButton />
+          {right}
+        </div>
       </div>
     </div>
   );

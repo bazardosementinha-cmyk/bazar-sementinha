@@ -1,5 +1,6 @@
 import { Shell, TopBar } from "@/components/Shell";
 import { StatusBadge } from "@/components/Badge";
+import { AddToCartButton } from "@/components/AddToCartButton";
 import { formatBRL } from "@/lib/utils";
 import { getItemByShortId, getItemPhotos, signedUrlsForPaths } from "@/lib/db";
 
@@ -31,6 +32,9 @@ export default async function ItemPage({ params }: Props) {
   const msg = encodeURIComponent(`Olá! Tenho interesse no item #${item.short_id}. Ele ainda está disponível?`);
   const waLink = `https://wa.me/?text=${msg}`;
   const igLink = item.source_url ?? "https://www.instagram.com/bazardosementinha/";
+
+  const canAddToCart = item.status === "available";
+  const address = "Rua Francisco de Assis Pupo, 390 – Vila Industrial – Campinas/SP";
 
   return (
     <>
@@ -70,22 +74,29 @@ export default async function ItemPage({ params }: Props) {
           )}
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <AddToCartButton shortId={item.short_id} disabled={!canAddToCart} />
           <a href={waLink} className="rounded-2xl bg-emerald-600 px-4 py-3 text-center font-semibold text-white hover:bg-emerald-700">
-            Reservar / Tirar dúvida no WhatsApp
+            WhatsApp / Direct
           </a>
           <a href={igLink} className="rounded-2xl border bg-white px-4 py-3 text-center font-semibold hover:bg-slate-50">
-            Ver no Instagram / Direct
+            Instagram
           </a>
         </div>
 
         <div className="mt-6 rounded-2xl border bg-white p-4 text-sm text-slate-700">
-          <div className="font-semibold">Regras (resumo)</div>
+          <div className="font-semibold">Informações Importantes</div>
           <ul className="mt-2 list-disc pl-5 space-y-1">
-            <li>Pagamento preferencial por Pix.</li>
-            <li>Retirada combinada (TUCXA2) ou no dia do bazar.</li>
-            <li>Sem troca.</li>
-            <li>Ao reservar: confirmar prazo e disponibilidade.</li>
+            <li>
+              Pagamento por <b>Pix</b> ou <b>Cartão de Crédito</b> (para cartão: fazer um Pix de <b>R$ 10,00</b> para
+              reserva; o valor é devolvido no pagamento/retirada).
+            </li>
+            <li>
+              Retirada no <b>TUCXA2</b> ({address}) conforme data e horário combinado.
+            </li>
+            <li>
+              <b>Não realizamos trocas.</b>
+            </li>
           </ul>
           <div className="mt-3 text-xs text-slate-500">ID do item: #{item.short_id}</div>
         </div>

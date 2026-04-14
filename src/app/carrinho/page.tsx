@@ -15,6 +15,10 @@ type Item = {
   status: string;
 };
 
+function notifyCartUpdated() {
+  window.dispatchEvent(new Event("bazar_cart_updated"));
+}
+
 function getCart(): string[] {
   try {
     const raw = localStorage.getItem("bazar_cart");
@@ -28,6 +32,7 @@ function getCart(): string[] {
 
 function setCart(ids: string[]) {
   localStorage.setItem("bazar_cart", JSON.stringify(ids));
+  notifyCartUpdated();
 }
 
 export default function CarrinhoPage() {
@@ -90,7 +95,7 @@ export default function CarrinhoPage() {
                 <div>
                   <div className="font-semibold">{i.title}</div>
                   <div className="text-sm text-slate-600">
-                    {i.category} • {i.condition}{i.size ? ` • Tam.: ${i.size}` : ""} • <b>R$ {i.price}</b>
+                    {i.category} • {i.condition}{i.size ? ` • Tam.: ${i.size}` : ""} • <b>R$ {Number(i.price).toFixed(2).replace(".", ",")}</b>
                   </div>
                   <div className="text-xs text-slate-500 mt-1">ID: #{i.short_id}</div>
                 </div>

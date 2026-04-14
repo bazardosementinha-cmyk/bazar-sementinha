@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { requireAdmin } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
-import { extractPricesFromCaption } from "@/lib/price";
 
 type ImportResponse = {
   short_id: string;
@@ -16,6 +15,13 @@ function fileExt(file: File): string {
   return fromType || "jpg";
 }
 
+function parseMoneyBR(raw: string): number | null {
+  const cleaned = raw.trim().replace(/\./g, "").replace(",", ".");
+  if (!cleaned) return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function POST(req: Request) {
   const gate = await requireAdmin();
   if (!gate.ok) return NextResponse.json({ error: gate.reason }, { status: 401 });
@@ -24,27 +30,35 @@ export async function POST(req: Request) {
 
   const form = await req.formData();
 
-  const caption = String(form.get("caption") ?? "");
-  const title = String(form.get("title") ?? "").trim();
+  const title = String(form.get("title") ?? "").trim() || "Item do Bazar";
+  const description = String(form.get("description") ?? "").trim() || null;
+
   const category = String(form.get("category") ?? "Outros");
   const condition = String(form.get("condition") ?? "Bom");
-  const size = String(form.get("size") ?? "").trim() || null;
-  const sourceUrl = String(form.get("source_url") ?? "").trim() || null;
+
+  // Facetas (opcionais)
+  const gender = String(form.get("gender") ?? "").trim() || null;
+  const age_group = String(form.get("age_group") ?? "").trim() || null;
+  const season = String(form.get("season") ?? "").trim() || null;
+
+  const size_type = String(form.get("size_type") ?? "").trim() || null;
+  const size_value = String(form.get("size_value") ?? "").trim() || null;
+
+  const price = parseMoneyBR(String(form.get("price") ?? ""));
+  const price_from = parseMoneyBR(String(form.get("price_from") ?? ""));
+
+  const location_box = String(form.get("location_box") ?? "").trim() || null;
+  const notes_internal = String(form.get("notes_internal") ?? "").trim() || null;
 
   const photos = form.getAll("photos").filter((p): p is File => p instanceof File);
 
-  if (!title) return NextResponse.json({ error: "Título é obrigatório." }, { status: 400 });
   if (photos.length < 1) return NextResponse.json({ error: "Envie pelo menos 1 foto." }, { status: 400 });
-
-  const prices = extractPricesFromCaption(caption);
-  if (!prices.price) {
-    return NextResponse.json(
-      { error: "Preço não detectado. Inclua na legenda (ex.: 'por R$ 115,00' ou 'de R$ 229,00 por R$ 115,00')." },
-      { status: 400 }
-    );
-  }
+  if (price == null || price <= 0) return NextResponse.json({ error: "Informe o preço (por)." }, { status: 400 });
 
   const short_id = nanoid(6).toUpperCase();
+
+  // Para compatibilidade: preencher coluna size (texto) também
+  const sizeText = size_type && size_value ? `${size_type}:${size_value}` : null;
 
   // Cria item (status review/rascunho)
   const { data: item, error: insErr } = await supabase
@@ -52,15 +66,22 @@ export async function POST(req: Request) {
     .insert({
       short_id,
       title,
-      description: caption || null,
+      description,
       category,
       condition,
-      size,
-      price: prices.price,
-      price_from: prices.price_from ?? null,
+      size: sizeText,
+      price,
+      price_from: price_from ?? null,
       status: "review",
-      source: sourceUrl ? "instagram" : "manual",
-      source_url: sourceUrl,
+      source: "manual",
+      source_url: null,
+      location_box,
+      notes_internal,
+      gender,
+      age_group,
+      season,
+      size_type,
+      size_value,
     })
     .select("id, short_id, status")
     .single();
@@ -72,16 +93,13 @@ export async function POST(req: Request) {
     const file = photos[i];
     const ext = fileExt(file);
     const path = `${item.id}/${String(i + 1).padStart(2, "0")}.${ext}`;
-
     const buf = Buffer.from(await file.arrayBuffer());
 
     const up = await supabase.storage.from("items").upload(path, buf, {
       contentType: file.type || "image/jpeg",
       upsert: false,
     });
-    if (up.error) {
-      return NextResponse.json({ error: `Falha ao subir foto ${i + 1}: ${up.error.message}` }, { status: 500 });
-    }
+    if (up.error) return NextResponse.json({ error: `Falha ao subir foto ${i + 1}: ${up.error.message}` }, { status: 500 });
 
     const { error: phErr } = await supabase.from("item_photos").insert({
       item_id: item.id,

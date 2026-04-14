@@ -6,7 +6,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser-client";
 
 function AdminLoginInner() {
   const sp = useSearchParams();
-  const next = sp.get("next") || "/admin/importar";
+  const next = sp.get("next") || "/admin/itens";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

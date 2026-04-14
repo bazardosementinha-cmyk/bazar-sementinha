@@ -59,10 +59,16 @@ export async function POST(req: Request) {
   const total = found.reduce((sum, x) => sum + Number(x.price ?? 0), 0);
   const code = `ORD-${nanoid(6).toUpperCase()}`;
 
-  // 1) upsert customer (simples: sempre cria um novo ou tenta casar por instagram)
-  const ig = customer.instagram.replace(/^@/, "").trim();
+  // 1) upsert customer (caso exista, atualiza; se não, cria)
+  const ig = customer.instagram.replace(/^@/, "").trim().toLowerCase();
 
-  const { data: existingCust } = await s.from("customers").select("id").eq("instagram", ig).maybeSingle();
+  const { data: existingCust, error: exErr } = await s
+    .from("customers")
+    .select("id,email,whatsapp,opt_in_marketing")
+    .eq("instagram", ig)
+    .maybeSingle();
+
+  if (exErr) return NextResponse.json({ error: exErr.message }, { status: 500 });
 
   let customerId: string | null = existingCust?.id ?? null;
 
@@ -80,9 +86,17 @@ export async function POST(req: Request) {
       .single();
     if (cErr || !createdCust) return NextResponse.json({ error: cErr?.message || "Falha ao criar cliente." }, { status: 500 });
     customerId = createdCust.id;
+  } else {
+    // Atualiza apenas campos fornecidos (não apaga dados antigos com null)
+    const patch: Record<string, unknown> = { name: customer.name.trim(), opt_in_marketing: !!customer.opt_in_marketing };
+    if (customer.email) patch.email = customer.email;
+    if (customer.whatsapp) patch.whatsapp = customer.whatsapp;
+
+    const { error: uErr } = await s.from("customers").update(patch).eq("id", customerId);
+    if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
   }
 
-  // 2) create order (reserved 24h)
+  // 2) create order// 2) create order (reserved 24h)
   const expires_at = nowPlusHours(24);
 
   const { data: order, error: oErr } = await s
