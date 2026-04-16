@@ -98,6 +98,12 @@ export default async function AdminVerItemPage({ params }: { params: Promise<Par
           >
             QR
           </Link>
+          <Link
+            href={`/admin/editar/${encodeURIComponent(item.short_id)}`}
+            className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50"
+          >
+            Editar
+          </Link>
           <a
             href={publicUrl}
             target="_blank"
@@ -162,7 +168,7 @@ export default async function AdminVerItemPage({ params }: { params: Promise<Par
             {item.description ?? "Sem descrição"}
           </div>
           <div className="mt-4 text-xs text-slate-500">
-            Dica: enquanto estiver em <b>review</b>, este item pode não aparecer no público. Use esta tela do admin para revisar.
+            Dica: enquanto estiver em <b>review</b>, o público pode não ver este item. Use Editar para ajustar antes de publicar.
           </div>
         </div>
       </div>
