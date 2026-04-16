@@ -54,17 +54,48 @@ export default function ItensPage() {
     return items.filter((i) => i.status === tab);
   }, [items, tab]);
 
-  async function setStatus(short_id: string, status: ItemStatus) {
+  async function setStatus(item: ItemRow, status: ItemStatus) {
     setBusy(true);
     setError(null);
     try {
+      let sold_price: string | undefined;
+      if (status === "sold") {
+        const hint = `Valor do anúncio: ${formatBRL(item.price)}\n\nDica: se vendeu no físico por valor diferente, informe aqui. Se for o mesmo, deixe em branco.`;
+        const v = window.prompt(`Vendido — informe o valor final (opcional)\n\n${hint}`, "");
+        if (v != null && v.trim() !== "") sold_price = v.trim();
+      }
+
       const resp = await fetch("/api/admin/status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ short_id, status }),
+        body: JSON.stringify({ short_id: item.short_id, status, sold_price }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data?.error || "Falha ao atualizar status");
+      await load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erro");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteDraft(item: ItemRow) {
+    const ok = window.confirm(
+      `Excluir o item #${item.short_id} (${item.title})?\n\nSomente itens em \'Em revisão\' podem ser excluídos.`
+    );
+    if (!ok) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      const resp = await fetch("/api/admin/delete-item", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ short_id: item.short_id }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data?.error || "Falha ao excluir item");
       await load();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erro");
@@ -150,12 +181,21 @@ export default function ItensPage() {
                 <td className="px-4 py-3">{statusLabel(i.status)}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
+                    {/* Ver (admin) abre mesmo se estiver em revisão */}
+                    <Link
+                      href={`/admin/ver/${i.short_id}`}
+                      className="rounded-xl border px-3 py-1 hover:bg-slate-50"
+                      target="_blank"
+                    >
+                      Ver
+                    </Link>
+                    {/* Público (cliente) */}
                     <Link
                       href={`/i/${i.short_id}`}
                       className="rounded-xl border px-3 py-1 hover:bg-slate-50"
                       target="_blank"
                     >
-                      Ver
+                      Público
                     </Link>
                     <Link
                       href={`/admin/qr/${i.short_id}`}
@@ -164,24 +204,34 @@ export default function ItensPage() {
                     >
                       QR
                     </Link>
+
                     <button
-                      onClick={() => setStatus(i.short_id, "available")}
+                      onClick={() => void setStatus(i, "available")}
                       className="rounded-xl bg-emerald-600 px-3 py-1 font-semibold text-white hover:bg-emerald-700"
                     >
                       Disponível
                     </button>
                     <button
-                      onClick={() => setStatus(i.short_id, "reserved")}
+                      onClick={() => void setStatus(i, "reserved")}
                       className="rounded-xl bg-amber-600 px-3 py-1 font-semibold text-white hover:bg-amber-700"
                     >
                       Reservar
                     </button>
                     <button
-                      onClick={() => setStatus(i.short_id, "sold")}
+                      onClick={() => void setStatus(i, "sold")}
                       className="rounded-xl bg-slate-900 px-3 py-1 font-semibold text-white hover:bg-black"
                     >
                       Vendido
                     </button>
+
+                    {i.status === "review" ? (
+                      <button
+                        onClick={() => void deleteDraft(i)}
+                        className="rounded-xl border border-red-300 bg-red-50 px-3 py-1 font-semibold text-red-700 hover:bg-red-100"
+                      >
+                        Excluir
+                      </button>
+                    ) : null}
                   </div>
                 </td>
               </tr>

@@ -3,7 +3,13 @@ import { requireAdmin } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 import type { ItemStatus } from "@/lib/utils";
 
-type Row = { status: ItemStatus | null; price: number | null };
+type Row = {
+  status: ItemStatus | null;
+  price: number | null;
+  sold_price: number | null;
+  sold_price_final: number | null;
+};
+
 type ReportRow = { status: string; count: number; total: number };
 
 export async function GET() {
@@ -12,7 +18,11 @@ export async function GET() {
 
   const supabase = await supabaseServer();
 
-  const { data, error } = await supabase.from("items").select("status, price");
+  // 🔥 agora buscamos sold_price e sold_price_final também
+  const { data, error } = await supabase
+    .from("items")
+    .select("status, price, sold_price, sold_price_final");
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const rowsMap = new Map<string, { count: number; total: number }>();
@@ -20,14 +30,21 @@ export async function GET() {
 
   for (const r of (data ?? []) as Row[]) {
     const statusKey = (r.status ?? "unknown") as string;
-    const price = Number(r.price ?? 0);
+
+    // total real:
+    // - sold => sold_price_final (fallback sold_price, fallback price)
+    // - outros => price
+    const announced = Number(r.price ?? 0);
+    const soldFinal = Number(r.sold_price_final ?? r.sold_price ?? r.price ?? 0);
+
+    const value = statusKey === "sold" ? soldFinal : announced;
 
     if (!rowsMap.has(statusKey)) rowsMap.set(statusKey, { count: 0, total: 0 });
     const obj = rowsMap.get(statusKey)!;
     obj.count += 1;
-    obj.total += price;
+    obj.total += value;
 
-    if (statusKey === "sold") soldTotal += price;
+    if (statusKey === "sold") soldTotal += soldFinal;
   }
 
   const rows: ReportRow[] = [...rowsMap.entries()]
