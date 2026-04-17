@@ -104,6 +104,66 @@ export default function AdminItensPage() {
     }
   }
 
+  function ActionLinks({ it }: { it: ItemRow }) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/ver/${it.short_id}`}>
+          Ver
+        </Link>
+        <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/editar/${it.short_id}`}>
+          Editar
+        </Link>
+        <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/i/${it.short_id}`} target="_blank">
+          Público
+        </Link>
+        <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/qr/${it.short_id}`} target="_blank">
+          QR
+        </Link>
+        {it.status === "review" ? (
+          <button
+            disabled={busyId === it.short_id}
+            className="rounded-lg border border-red-300 px-2 py-1 text-red-700 hover:bg-red-50 disabled:opacity-60"
+            onClick={() => onDelete(it.short_id)}
+            type="button"
+          >
+            Excluir
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  function ActionStatusButtons({ it }: { it: ItemRow }) {
+    return (
+      <div className="flex flex-wrap gap-2">
+        <button
+          disabled={busyId === it.short_id}
+          className="rounded-lg bg-emerald-600 px-2 py-1 text-white hover:bg-emerald-700 disabled:opacity-60"
+          onClick={() => setStatus(it.short_id, "available")}
+          type="button"
+        >
+          Disponível
+        </button>
+        <button
+          disabled={busyId === it.short_id}
+          className="rounded-lg bg-amber-600 px-2 py-1 text-white hover:bg-amber-700 disabled:opacity-60"
+          onClick={() => setStatus(it.short_id, "reserved")}
+          type="button"
+        >
+          Reservar
+        </button>
+        <button
+          disabled={busyId === it.short_id}
+          className="rounded-lg bg-slate-700 px-2 py-1 text-white hover:bg-slate-800 disabled:opacity-60"
+          onClick={() => setStatus(it.short_id, "sold")}
+          type="button"
+        >
+          Vendido
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
       <div className="flex items-start justify-between gap-3">
@@ -141,8 +201,43 @@ export default function AdminItensPage() {
 
       {error ? <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
 
-      <div className="mt-4 overflow-hidden rounded-2xl border bg-white">
-        <table className="w-full text-sm">
+      {/* ✅ Mobile: cards (mostra TODAS as ações sem “sumir”) */}
+      <div className="mt-4 grid gap-3 md:hidden">
+        {filtered.map((it) => (
+          <div key={it.id} className="rounded-2xl border bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="font-mono text-xs text-slate-500">#{it.short_id}</div>
+                <div className="font-semibold">{it.title}</div>
+                <div className="text-xs text-slate-500">{it.condition}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-slate-500">{it.category}</div>
+                <div className="font-semibold">{formatBRL(Number(it.price))}</div>
+                {it.price_from ? (
+                  <div className="text-xs text-slate-500 line-through">{formatBRL(Number(it.price_from))}</div>
+                ) : null}
+                <div className="mt-1 text-xs font-semibold text-slate-700">{statusLabel(it.status)}</div>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-2">
+              <ActionLinks it={it} />
+              <ActionStatusButtons it={it} />
+            </div>
+          </div>
+        ))}
+
+        {!filtered.length ? (
+          <div className="rounded-2xl border bg-white p-6 text-center text-sm text-slate-500">
+            Nenhum item neste filtro.
+          </div>
+        ) : null}
+      </div>
+
+      {/* ✅ Desktop/Notebook: tabela */}
+      <div className="mt-4 hidden overflow-x-auto rounded-2xl border bg-white md:block">
+        <table className="min-w-[980px] w-full text-sm">
           <thead className="bg-slate-50 text-left">
             <tr>
               <th className="px-3 py-2">ID</th>
@@ -171,58 +266,13 @@ export default function AdminItensPage() {
                 <td className="px-3 py-2">{statusLabel(it.status)}</td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-2">
-                    <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/ver/${it.short_id}`}>
-                      Ver
-                    </Link>
-                    <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/editar/${it.short_id}`}>
-                      Editar
-                    </Link>
-                    <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/i/${it.short_id}`} target="_blank">
-                      Público
-                    </Link>
-                    <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/qr/${it.short_id}`} target="_blank">
-                      QR
-                    </Link>
-
-                    <button
-                      disabled={busyId === it.short_id}
-                      className="rounded-lg bg-emerald-600 px-2 py-1 text-white hover:bg-emerald-700 disabled:opacity-60"
-                      onClick={() => setStatus(it.short_id, "available")}
-                      type="button"
-                    >
-                      Disponível
-                    </button>
-                    <button
-                      disabled={busyId === it.short_id}
-                      className="rounded-lg bg-amber-600 px-2 py-1 text-white hover:bg-amber-700 disabled:opacity-60"
-                      onClick={() => setStatus(it.short_id, "reserved")}
-                      type="button"
-                    >
-                      Reservar
-                    </button>
-                    <button
-                      disabled={busyId === it.short_id}
-                      className="rounded-lg bg-slate-700 px-2 py-1 text-white hover:bg-slate-800 disabled:opacity-60"
-                      onClick={() => setStatus(it.short_id, "sold")}
-                      type="button"
-                    >
-                      Vendido
-                    </button>
-
-                    {it.status === "review" ? (
-                      <button
-                        disabled={busyId === it.short_id}
-                        className="rounded-lg border border-red-300 px-2 py-1 text-red-700 hover:bg-red-50 disabled:opacity-60"
-                        onClick={() => onDelete(it.short_id)}
-                        type="button"
-                      >
-                        Excluir
-                      </button>
-                    ) : null}
+                    <ActionLinks it={it} />
+                    <ActionStatusButtons it={it} />
                   </div>
                 </td>
               </tr>
             ))}
+
             {!filtered.length ? (
               <tr>
                 <td className="px-3 py-6 text-center text-slate-500" colSpan={6}>
