@@ -10,7 +10,9 @@ function getErrorMessage(err: unknown): string {
 
 export default function LoginClient() {
   const sp = useSearchParams();
-  const next = sp.get("next") || "/admin/importar";
+
+  // ✅ Pós-login padrão: lista de itens (home do admin)
+  const next = sp.get("next") || "/admin/itens";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,6 +58,7 @@ export default function LoginClient() {
               required
             />
           </div>
+
           <div>
             <label className="text-sm font-medium">Senha</label>
             <input

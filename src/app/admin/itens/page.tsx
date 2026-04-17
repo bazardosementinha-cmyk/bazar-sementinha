@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { formatBRL, statusLabel, type ItemStatus } from "@/lib/utils";
 
 type ItemRow = {
@@ -29,7 +30,15 @@ function getErrorMessage(err: unknown): string {
   return "Erro";
 }
 
+function pillClass(active: boolean) {
+  return active
+    ? "rounded-full border border-slate-900 bg-slate-900 px-3 py-1 text-sm font-semibold text-white"
+    : "rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50";
+}
+
 export default function AdminItensPage() {
+  const pathname = usePathname();
+
   const [items, setItems] = useState<ItemRow[]>([]);
   const [tab, setTab] = useState<(typeof tabs)[number]["key"]>("review");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -164,36 +173,36 @@ export default function AdminItensPage() {
     );
   }
 
+  const isItens = pathname?.startsWith("/admin/itens");
+  const isPedidos = pathname?.startsWith("/admin/pedidos");
+  const isRelatorio = pathname?.startsWith("/admin/relatorio");
+  const isCriar = pathname?.startsWith("/admin/importar");
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Itens</h1>
-          <p className="mt-1 text-slate-600">Gerencie status (Disponível / Reservado / Vendido).</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/admin/pedidos" className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50">
-            Pedidos
-          </Link>
-          <Link href="/admin/relatorio" className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50">
-            Relatório
-          </Link>
-        </div>
-      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="mr-2 text-2xl font-bold">Itens</h1>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Link href="/admin/importar" className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50">
+        {/* ✅ Nav do admin no mesmo padrão "pill" */}
+        <Link href="/admin/itens" className={pillClass(!!isItens)}>
+          Itens
+        </Link>
+        <Link href="/admin/pedidos" className={pillClass(!!isPedidos)}>
+          Pedidos
+        </Link>
+        <Link href="/admin/relatorio" className={pillClass(!!isRelatorio)}>
+          Relatório
+        </Link>
+        <Link href="/admin/importar" className={pillClass(!!isCriar)}>
           Criar
         </Link>
+      </div>
+
+      <p className="mt-2 text-slate-600">Gerencie status (Disponível / Reservado / Vendido).</p>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         {tabs.map((t) => (
-          <button
-            key={t.key}
-            className={`rounded-full border px-3 py-1 text-sm font-semibold ${
-              tab === t.key ? "bg-slate-900 text-white border-slate-900" : "bg-white hover:bg-slate-50"
-            }`}
-            onClick={() => setTab(t.key)}
-            type="button"
-          >
+          <button key={t.key} className={pillClass(tab === t.key)} onClick={() => setTab(t.key)} type="button">
             {t.label}
           </button>
         ))}
@@ -201,7 +210,6 @@ export default function AdminItensPage() {
 
       {error ? <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
 
-      {/* ✅ Mobile: cards (mostra TODAS as ações sem “sumir”) */}
       <div className="mt-4 grid gap-3 md:hidden">
         {filtered.map((it) => (
           <div key={it.id} className="rounded-2xl border bg-white p-4">
@@ -214,9 +222,7 @@ export default function AdminItensPage() {
               <div className="text-right">
                 <div className="text-xs text-slate-500">{it.category}</div>
                 <div className="font-semibold">{formatBRL(Number(it.price))}</div>
-                {it.price_from ? (
-                  <div className="text-xs text-slate-500 line-through">{formatBRL(Number(it.price_from))}</div>
-                ) : null}
+                {it.price_from ? <div className="text-xs text-slate-500 line-through">{formatBRL(Number(it.price_from))}</div> : null}
                 <div className="mt-1 text-xs font-semibold text-slate-700">{statusLabel(it.status)}</div>
               </div>
             </div>
@@ -229,13 +235,10 @@ export default function AdminItensPage() {
         ))}
 
         {!filtered.length ? (
-          <div className="rounded-2xl border bg-white p-6 text-center text-sm text-slate-500">
-            Nenhum item neste filtro.
-          </div>
+          <div className="rounded-2xl border bg-white p-6 text-center text-sm text-slate-500">Nenhum item neste filtro.</div>
         ) : null}
       </div>
 
-      {/* ✅ Desktop/Notebook: tabela */}
       <div className="mt-4 hidden overflow-x-auto rounded-2xl border bg-white md:block">
         <table className="min-w-[980px] w-full text-sm">
           <thead className="bg-slate-50 text-left">
@@ -259,9 +262,7 @@ export default function AdminItensPage() {
                 <td className="px-3 py-2">{it.category}</td>
                 <td className="px-3 py-2">
                   <div className="font-semibold">{formatBRL(Number(it.price))}</div>
-                  {it.price_from ? (
-                    <div className="text-xs text-slate-500 line-through">{formatBRL(Number(it.price_from))}</div>
-                  ) : null}
+                  {it.price_from ? <div className="text-xs text-slate-500 line-through">{formatBRL(Number(it.price_from))}</div> : null}
                 </td>
                 <td className="px-3 py-2">{statusLabel(it.status)}</td>
                 <td className="px-3 py-2">
