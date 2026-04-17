@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
+import LegendPreview from "@/components/LegendPreview";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,72 @@ function fmtMoneyBR(v: number | null | undefined): string {
   return v.toFixed(2).replace(".", ",");
 }
 
+function clamp(s: string, max: number) {
+  const t = s.trim().replace(/\s+/g, " ");
+  if (t.length <= max) return t;
+  return t.slice(0, max - 1).trimEnd() + "...";
+}
+
+function toHashtagToken(text: string): string | null {
+  const t = text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, "");
+  if (!t) return null;
+  return `#${t}`;
+}
+
+function buildHashtags(category: string) {
+  const base = ["#bazar", "#sementinha", "#bazaronline", "#campinas", "#solidariedade"];
+  const catTag = toHashtagToken(category);
+  const all = catTag ? [...base, catTag] : base;
+  return Array.from(new Set(all)).join(" ");
+}
+
+function priceLine(price: number | null, priceFrom: number | null) {
+  const p = typeof price === "number" && Number.isFinite(price) ? price.toFixed(2).replace(".", ",") : "";
+  const pf = typeof priceFrom === "number" && Number.isFinite(priceFrom) ? priceFrom.toFixed(2).replace(".", ",") : "";
+  if (pf && p) return `De R$ ${pf} por R$ ${p}`;
+  if (p) return `R$ ${p}`;
+  return "(informe o preco)";
+}
+
+function deepDiveDesc(title: string, condition: string, description: string | null) {
+  const base =
+    `${title} (${condition}). ` +
+    "Peca pronta para uso imediato - otima oportunidade para economizar e aproveitar. " +
+    "Ao comprar, voce ajuda o Bazar do Sementinha: 100% do valor e revertido para a acao social.";
+  const d = (description || "").trim();
+  return clamp(d || base, 320);
+}
+
+function buildCaption(opts: {
+  title: string;
+  condition: string;
+  price: number | null;
+  price_from: number | null;
+  description: string | null;
+  category: string;
+}) {
+  const address = "Rua Francisco de Assis Pupo, 390 - Vila Industrial - Campinas/SP";
+  const t = opts.title.trim() ? opts.title.trim() : "Item do Bazar";
+  const cond = opts.condition || "Muito bom";
+  const desc = deepDiveDesc(t, cond, opts.description);
+  return [
+    `${t} (${cond})`,
+    `Preco: ${priceLine(opts.price, opts.price_from)}`,
+    "",
+    desc,
+    "",
+    `Retirada no TUCXA2 (${address})`,
+    "Nao realizamos trocas.",
+  ].join("\n");
+}
+
+
 export default async function AdminVerItemPage({ params }: { params: Promise<Params> }) {
   const gate = await requireAdmin();
   if (!gate.ok) redirect("/admin/login");
@@ -55,7 +122,9 @@ export default async function AdminVerItemPage({ params }: { params: Promise<Par
         <h1 className="text-xl font-bold">Erro ao carregar item</h1>
         <p className="mt-2 text-red-700 text-sm">{error.message}</p>
         <div className="mt-4">
-          <Link className="underline" href="/admin/itens">Voltar para Itens</Link>
+          <Link className="underline" href="/admin/itens">
+            Voltar para Itens
+          </Link>
         </div>
       </div>
     );
@@ -69,40 +138,49 @@ export default async function AdminVerItemPage({ params }: { params: Promise<Par
         <h1 className="text-xl font-bold">Item não encontrado</h1>
         <p className="mt-2 text-slate-600">Verifique o código do item e tente novamente.</p>
         <div className="mt-4">
-          <Link className="underline" href="/admin/itens">Voltar para Itens</Link>
+          <Link className="underline" href="/admin/itens">
+            Voltar para Itens
+          </Link>
         </div>
       </div>
     );
   }
 
+  const caption = buildCaption({
+    title: item.title ?? "",
+    condition: item.condition ?? "Muito bom",
+    price: item.price,
+    price_from: item.price_from,
+    description: item.description,
+    category: item.category ?? "Outros",
+  });
+  const hashtags = buildHashtags(item.category ?? "Outros");
+
   const base = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
   const publicUrl = base ? `${base}/i/${encodeURIComponent(item.short_id)}` : `/i/${encodeURIComponent(item.short_id)}`;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Item #{item.short_id}</h1>
           <p className="mt-1 text-slate-600">{item.title ?? "Sem título"}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/admin/itens"
-            className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50"
-          >
+          <Link href="/admin/itens" className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50">
             Voltar
-          </Link>
-          <Link
-            href={`/admin/qr/${encodeURIComponent(item.short_id)}`}
-            className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50"
-          >
-            QR
           </Link>
           <Link
             href={`/admin/editar/${encodeURIComponent(item.short_id)}`}
             className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50"
           >
             Editar
+          </Link>
+          <Link
+            href={`/admin/qr/${encodeURIComponent(item.short_id)}`}
+            className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50"
+          >
+            QR
           </Link>
           <a
             href={publicUrl}
@@ -145,7 +223,8 @@ export default async function AdminVerItemPage({ params }: { params: Promise<Par
 
             <dt className="text-slate-500">Tamanho</dt>
             <dd className="font-medium">
-              {(item.size_type ?? "-")}{item.size_value ? ` • ${item.size_value}` : ""}
+              {(item.size_type ?? "-")}
+              {item.size_value ? ` • ${item.size_value}` : ""}
             </dd>
 
             <dt className="text-slate-500">Local/caixa</dt>
@@ -162,15 +241,7 @@ export default async function AdminVerItemPage({ params }: { params: Promise<Par
           </dl>
         </div>
 
-        <div className="rounded-2xl border bg-white p-5">
-          <div className="text-sm font-semibold">Descrição</div>
-          <div className="mt-3 whitespace-pre-wrap text-sm text-slate-800">
-            {item.description ?? "Sem descrição"}
-          </div>
-          <div className="mt-4 text-xs text-slate-500">
-            Dica: enquanto estiver em <b>review</b>, o público pode não ver este item. Use Editar para ajustar antes de publicar.
-          </div>
-        </div>
+        <LegendPreview caption={caption} hashtags={hashtags} />
       </div>
     </div>
   );
