@@ -176,14 +176,11 @@ export default function AdminItensPage() {
   const isItens = pathname?.startsWith("/admin/itens");
   const isPedidos = pathname?.startsWith("/admin/pedidos");
   const isRelatorio = pathname?.startsWith("/admin/relatorio");
-  const isCriar = pathname?.startsWith("/admin/importar");
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
+      {/* ✅ Removido "Itens" duplicado (mantém apenas os pills) */}
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-2 text-2xl font-bold">Itens</h1>
-
-        {/* ✅ Nav do admin no mesmo padrão "pill" */}
         <Link href="/admin/itens" className={pillClass(!!isItens)}>
           Itens
         </Link>
@@ -193,14 +190,16 @@ export default function AdminItensPage() {
         <Link href="/admin/relatorio" className={pillClass(!!isRelatorio)}>
           Relatório
         </Link>
-        <Link href="/admin/importar" className={pillClass(!!isCriar)}>
-          Criar
-        </Link>
       </div>
 
       <p className="mt-2 text-slate-600">Gerencie status (Disponível / Reservado / Vendido).</p>
 
+      {/* ✅ "Criar" vem antes de "Todos" */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Link href="/admin/importar" className={pillClass(false)}>
+          Criar
+        </Link>
+
         {tabs.map((t) => (
           <button key={t.key} className={pillClass(tab === t.key)} onClick={() => setTab(t.key)} type="button">
             {t.label}
