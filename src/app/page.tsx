@@ -56,7 +56,7 @@ export default async function Page({
       <Shell>
         <h1 className="text-2xl font-bold">Catálogo</h1>
         <p className="mt-1 text-slate-600">
-          Escolha itens e reserve pelo site. Atendimento e confirmação pelo Direct do Instagram.
+          Escolha itens e reserve pelo site. Atendimento e confirmação pelo WhatsApp.
         </p>
 
         {/* Category filters */}
