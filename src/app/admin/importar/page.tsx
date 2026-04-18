@@ -63,27 +63,6 @@ async function copyToClipboard(text: string) {
 
 type CsvRow = Record<string, string>;
 
-function parseCsvSemicolon(csvText: string): CsvRow | null {
-  const text = csvText.replace(/^\uFEFF/, "");
-  const lines = text
-    .split(/\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  if (lines.length < 2) return null;
-
-  const header = parseCsvLine(lines[0] ?? "", ";");
-  const row = parseCsvLine(lines[1] ?? "", ";");
-  if (!header.length || header.length !== row.length) return null;
-
-  const out: CsvRow = {};
-  header.forEach((h, i) => {
-    const key = h.trim().replace(/^"|"$/g, "");
-    out[key] = (row[i] ?? "").trim().replace(/^"|"$/g, "");
-  });
-  return out;
-}
-
 function parseCsvLine(line: string, sep: string): string[] {
   const out: string[] = [];
   let cur = "";
@@ -125,10 +104,28 @@ function parseCsvLine(line: string, sep: string): string[] {
   return out;
 }
 
-/**
- * Prompt FULL (blindado): copia via botao "Copiar prompt".
- * Prompt COMPACTO: usado na URL do ChatGPT (evita estourar limite em mobile).
- */
+function parseCsvSemicolon(csvText: string): CsvRow | null {
+  const text = csvText.replace(/^\uFEFF/, "");
+  const lines = text
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  if (lines.length < 2) return null;
+
+  const header = parseCsvLine(lines[0] ?? "", ";");
+  const row = parseCsvLine(lines[1] ?? "", ";");
+  if (!header.length || header.length !== row.length) return null;
+
+  const out: CsvRow = {};
+  header.forEach((h, i) => {
+    const key = h.trim().replace(/^"|"$/g, "");
+    out[key] = (row[i] ?? "").trim().replace(/^"|"$/g, "");
+  });
+  return out;
+}
+
+// Prompt FULL (para botao "Copiar prompt")
 const CHATGPT_PROMPT_FULL = `Voce e um assistente de catalogacao para um bazar beneficente (Brasil).
 
 Tarefa:
@@ -142,36 +139,31 @@ Formato do CSV:
 - Colunas (exatas e nesta ordem):
 title;description;category;condition;price;price_from;gender;age_group;season;size_type;size_value;location_box;notes_internal
 
-Regras de valores:
-- category: prefira uma destas: "Roupas", "Calcados", "Acessorios", "Outros". Se realmente precisar, pode sugerir outra, mas tente ficar nas 4.
-- condition: escolha UMA: "Novo", "Muito bom", "Bom", "Regular".
-- price e price_from: texto no formato brasileiro (ex.: "115,00"). Se nao houver etiqueta/preco visivel, estime conservador (preco de bazar).
-- gender (somente roupas): "feminino" | "masculino" | "unissex". Se nao for roupa, deixe vazio.
-- age_group (somente roupas): "infantil" | "adolescente" | "adulto". Se nao for roupa, deixe vazio.
-- season (somente roupas): "verao" | "inverno" | "meia_estacao" | "todas". Se nao for roupa, deixe vazio.
-- size_type: escolha UMA: "livre" | "roupa_letras" | "roupa_numero" | "calcado_br" | "infantil_idade" | "medidas_cm"
-- size_value: conforme size_type:
-  - roupa_letras: "PP" | "P" | "M" | "G" | "GG"
-  - roupa_numero: "38" (ex.)
-  - calcado_br: "40" (ex.)
-  - infantil_idade: "10 anos" (ex.)
-  - medidas_cm: "25cm" (ex.)
-  - livre: ""
-- location_box: deixe vazio
-- notes_internal: anote defeitos discretos se houver (ex.: "pequena mancha na foto 3"), senao vazio.
+Regras:
+- category: prefira "Roupas" | "Calcados" | "Acessorios" | "Outros". Se realmente precisar, pode sugerir outra.
+- condition: "Novo" | "Muito bom" | "Bom" | "Regular".
+- price e price_from: formato "115,00". Se nao houver etiqueta visivel, estime conservador.
+- gender (só roupas): "feminino" | "masculino" | "unissex". Se nao for roupa, vazio.
+- age_group (só roupas): "infantil" | "adolescente" | "adulto". Se nao for roupa, vazio.
+- season (só roupas): "verao" | "inverno" | "meia_estacao" | "todas". Se nao for roupa, vazio.
+- size_type: "livre" | "roupa_letras" | "roupa_numero" | "calcado_br" | "infantil_idade" | "medidas_cm"
+- size_value (exemplos): "M" | "38" | "40" | "10 anos" | "25cm" | "" (livre)
+- location_box: vazio
+- notes_internal: defeitos discretos se houver (ex.: "pequena mancha na foto 3"), senao vazio
 
-CSV quoting (muito importante):
-- Se algum campo tiver ponto-e-virgula, aspas ou quebra de linha, coloque o campo entre aspas duplas.
-- Se houver aspas dentro do campo, duplique as aspas (ex.: "a""b").
-- Nao use texto fora do CSV.
+CSV quoting (importante):
+- Se algum campo tiver ponto-e-virgula, aspas ou quebra de linha, coloque entre aspas duplas.
+- Se houver aspas dentro do campo, duplique-as (ex.: "a""b").
+- Nao escreva nada fora do CSV.
 
-Deep Dive (aplicacao pratica):
-- Title: curto e instagramavel, padrao: objeto + atributo (cor/marca/tamanho), ex.: "Bolsa feminina marrom (tamanho medio)".
-- Description: curta, direta, sem exagero, SEM quebras de linha, com 1 beneficio claro + 1 linha de beneficio social. Limite ~180-220 caracteres.
-  Estrutura (uma frase so): [o que e + estado] + [beneficio (economiza/resolve/ajuda)] + [beneficio social: "100% do valor e revertido para a acao social do Bazar do Sementinha"].`;
+Deep Dive:
+- title: curto e instagramavel (objeto + atributo: cor/marca/tamanho)
+- description: 180-220 caracteres, sem quebra de linha, 1 beneficio + beneficio social:
+"100% do valor e revertido para a acao social do Bazar do Sementinha".`;
 
+// Prompt COMPACTO (para URL do ChatGPT, mais seguro em mobile)
 const CHATGPT_PROMPT_COMPACT =
-  'Voce e um assistente de catalogacao para um bazar beneficente (Brasil). Analise 3-7 fotos (1 item) e gere UM CSV (cabecalho + 1 linha) com separador ";" e aspas quando necessario. Responda SOMENTE o CSV. Se possivel, anexe tambem um arquivo ITEM.csv com o mesmo conteudo. Colunas exatas: title;description;category;condition;price;price_from;gender;age_group;season;size_type;size_value;location_box;notes_internal. Regras: category prefira Roupas/Calcados/Acessorios/Outros; condition Novo/Muito bom/Bom/Regular; price "115,00"; gender/age_group/season so roupas; size_type livre/roupa_letras/roupa_numero/calcado_br/infantil_idade/medidas_cm; location_box vazio; notes_internal defeitos discretos. Title instagramavel (objeto+atributo). Description 180-220 chars, sem quebra de linha, 1 beneficio + beneficio social: "100% do valor e revertido para a acao social do Bazar do Sementinha".';
+  'Voce e um assistente de catalogacao para um bazar beneficente (Brasil). Analise 3-7 fotos (1 item) e gere UM CSV (cabecalho + 1 linha) com separador ";" e aspas quando necessario. Responda SOMENTE o CSV. Se possivel, anexe ITEM.csv. Colunas: title;description;category;condition;price;price_from;gender;age_group;season;size_type;size_value;location_box;notes_internal. Title instagramavel. Description 180-220 chars, sem quebra de linha, com beneficio social: "100% do valor e revertido para a acao social do Bazar do Sementinha".';
 
 export default function CadastrarItemPage() {
   const formRef = useRef<HTMLFormElement | null>(null);
@@ -179,8 +171,9 @@ export default function CadastrarItemPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [promptCopied, setPromptCopied] = useState(false);
+
+  const [copiedCaption, setCopiedCaption] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   const [categories, setCategories] = useState<string[]>(["Roupas", "Calcados", "Acessorios", "Outros"]);
 
@@ -203,7 +196,6 @@ export default function CadastrarItemPage() {
   const [notesInternal, setNotesInternal] = useState("");
 
   const suggestedTitle = useMemo(() => (title.trim() ? title.trim() : "Item do Bazar"), [title]);
-  const descriptionChars = useMemo(() => description.length, [description]);
 
   const address = "Rua Francisco de Assis Pupo, 390 - Vila Industrial - Campinas/SP";
 
@@ -238,9 +230,6 @@ export default function CadastrarItemPage() {
 
   const captionChars = useMemo(() => captionPreview.length, [captionPreview]);
 
-  const descCounterColor =
-    descriptionChars > 320 ? "text-red-600" : descriptionChars > 280 ? "text-amber-600" : "text-slate-500";
-
   const chatgptUrl = useMemo(() => {
     const q = encodeURIComponent(CHATGPT_PROMPT_COMPACT);
     return `https://chatgpt.com/?q=${q}&temporary-chat=true`;
@@ -251,7 +240,9 @@ export default function CadastrarItemPage() {
       const resp = await fetch("/api/admin/categories");
       const data = await resp.json();
       if (!resp.ok) return;
-      const arr = Array.isArray(data?.categories) ? (data.categories as string[]) : [];
+      const arr = Array.isArray((data as { categories?: unknown }).categories)
+        ? ((data as { categories: string[] }).categories as string[])
+        : [];
       const base = ["Roupas", "Calcados", "Acessorios", "Outros"];
       const merged = Array.from(new Set([...base, ...arr.filter((x) => typeof x === "string" && x.trim())]))
         .map((x) => x.trim())
@@ -264,28 +255,29 @@ export default function CadastrarItemPage() {
 
   function suggestLocal() {
     if (!title.trim()) setTitle("Item do Bazar");
-    if (!description.trim()) setDescription(deepDiveDescription("Item do Bazar", condition || "Muito bom"));
+    if (!description.trim()) setDescription(deepDiveDescription(suggestedTitle, condition || "Muito bom"));
   }
 
   async function onCopyCaption() {
     const ok = await copyToClipboard(captionWithHashtags);
     if (ok) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
+      setCopiedCaption(true);
+      setTimeout(() => setCopiedCaption(false), 1200);
     }
   }
 
   async function onCopyPrompt() {
     const ok = await copyToClipboard(CHATGPT_PROMPT_FULL);
     if (ok) {
-      setPromptCopied(true);
-      setTimeout(() => setPromptCopied(false), 1200);
+      setCopiedPrompt(true);
+      setTimeout(() => setCopiedPrompt(false), 1200);
     }
   }
 
   async function onCsvChange(file: File | null) {
     if (!file) return;
     setError(null);
+
     try {
       const text = await file.text();
       const row = parseCsvSemicolon(text);
@@ -323,11 +315,8 @@ export default function CadastrarItemPage() {
       if (lb) setLocationBox(lb);
       if (ni) setNotesInternal(ni);
 
-      if (c) {
-        setCategories((prev) => {
-          if (prev.includes(c)) return prev;
-          return Array.from(new Set([...prev, c])).sort((a, b) => a.localeCompare(b));
-        });
+      if (c && !categories.includes(c)) {
+        setCategories((prev) => Array.from(new Set([...prev, c])).sort((a, b) => a.localeCompare(b)));
       }
     } catch (e: unknown) {
       setError(getErrorMessage(e));
@@ -343,6 +332,7 @@ export default function CadastrarItemPage() {
     const formEl = e.currentTarget;
 
     const fd = new FormData(formEl);
+
     if (!fd.get("title")) fd.set("title", suggestedTitle);
 
     const descFinal = description.trim()
@@ -366,6 +356,7 @@ export default function CadastrarItemPage() {
       }
 
       setResult(data as ImportResult);
+
       formEl.reset();
 
       setTitle("");
@@ -396,21 +387,22 @@ export default function CadastrarItemPage() {
         <div>
           <h1 className="text-2xl font-bold">Cadastrar item (assistido)</h1>
 
-          {/* ✅ Link + botao copiar prompt (UX robusta p/ mobile) */}
           <p className="mt-1 text-slate-600">
-            Envie 3-6 fotos. Opcional: gere um CSV (1 item) no{" "}
+            Clique para abrir o{" "}
             <a href={chatgptUrl} target="_blank" rel="noreferrer" className="font-semibold underline">
-              ChatGPT (prompt pronto)
+              ChatGPT com o prompt pronto
             </a>{" "}
-            para preencher os campos.{" "}
-            <button
-              type="button"
-              onClick={() => void onCopyPrompt()}
-              className="ml-2 rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50"
-              title="Copia o prompt FULL (blindado) para voce colar no ChatGPT"
-            >
-              {promptCopied ? "Prompt copiado!" : "Copiar prompt"}
-            </button>
+            ou copie o prompt completo para usar em outra IA. <b>Importante:</b> nao esqueca de anexar as fotos.
+            <span className="ml-2 inline-flex">
+              <button
+                type="button"
+                onClick={() => void onCopyPrompt()}
+                className="rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50"
+                title="Copia o prompt FULL (blindado) para voce colar em outra IA"
+              >
+                {copiedPrompt ? "Prompt copiado!" : "Copiar prompt"}
+              </button>
+            </span>
           </p>
         </div>
 
@@ -449,7 +441,9 @@ export default function CadastrarItemPage() {
               className="mt-1 w-full rounded-xl border px-3 py-2"
               onChange={(e) => void onCsvChange(e.target.files?.[0] ?? null)}
             />
-            <div className="mt-1 text-xs text-slate-500">Esperado: separador &quot;;&quot;, cabecalho + 1 linha.</div>
+            <div className="mt-1 text-xs text-slate-500">
+              Esperado: separador &quot;;&quot;, cabecalho + 1 linha.
+            </div>
           </div>
 
           <div>
@@ -463,7 +457,7 @@ export default function CadastrarItemPage() {
               className="mt-1 w-full rounded-xl border px-3 py-2"
             />
             <div className="mt-1 text-xs text-slate-500">
-              Padrao sugerido: 1) principal 2) etiqueta/marca/tamanho 3) defeito (se houver) + extras.
+              Sugestao: 1) principal 2) etiqueta/marca/tamanho 3) defeito (se houver) + extras.
             </div>
           </div>
 
@@ -481,6 +475,7 @@ export default function CadastrarItemPage() {
                 Sugestao: <span className="font-mono">{suggestedTitle}</span>
               </div>
             </div>
+
             <div>
               <label className="text-sm font-medium">Categoria</label>
               <input
@@ -497,7 +492,7 @@ export default function CadastrarItemPage() {
                 ))}
               </datalist>
               <div className="mt-1 text-xs text-slate-500">
-                Se a categoria nao existir, digite e ela passara a aparecer no filtro.
+                Se a categoria nao existir, digite e ela passa a aparecer no filtro.
               </div>
             </div>
           </div>
@@ -511,9 +506,7 @@ export default function CadastrarItemPage() {
               className="mt-1 w-full rounded-xl border px-3 py-2 min-h-[120px]"
               placeholder="Descricao curta e clara..."
             />
-            <div className={`mt-1 text-xs ${descCounterColor}`}>
-              {descriptionChars}/320 <span className="text-slate-400">(ideal ~280)</span>
-            </div>
+            <div className="mt-1 text-xs text-slate-500">{description.length}/320</div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -570,6 +563,7 @@ export default function CadastrarItemPage() {
 
           <div className="rounded-2xl border bg-slate-50 p-4">
             <div className="font-semibold mb-2">Facetas para roupas</div>
+
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="text-sm font-medium">Sexo</label>
@@ -584,6 +578,7 @@ export default function CadastrarItemPage() {
                   <option value="unissex">Unissex</option>
                 </select>
               </div>
+
               <div>
                 <label className="text-sm font-medium">Faixa etaria</label>
                 <select
@@ -597,6 +592,7 @@ export default function CadastrarItemPage() {
                   <option value="adulto">Adulto</option>
                 </select>
               </div>
+
               <div>
                 <label className="text-sm font-medium">Estacao</label>
                 <select
@@ -630,6 +626,7 @@ export default function CadastrarItemPage() {
                   <option value="medidas_cm">Medidas (cm)</option>
                 </select>
               </div>
+
               <div className="sm:col-span-2">
                 <label className="text-sm font-medium">Valor do tamanho</label>
                 <input
@@ -644,7 +641,7 @@ export default function CadastrarItemPage() {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Observacao (opcional)</label>
+            <label className="text-sm font-medium">Observacao interna (opcional)</label>
             <input
               name="notes_internal"
               value={notesInternal}
@@ -662,6 +659,7 @@ export default function CadastrarItemPage() {
           </button>
 
           {error ? <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
+
           {result ? (
             <div className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">
               Criado: <b>#{result.short_id}</b> (status: {result.status}).{" "}
@@ -686,15 +684,16 @@ export default function CadastrarItemPage() {
               <div className="text-sm font-semibold">Preview (Instagram)</div>
               <div className="text-xs text-slate-500">Texto curto e direto (auto-limitado).</div>
             </div>
+
             <div className="flex items-center gap-2">
               <div className="text-xs text-slate-500">{captionChars} chars</div>
               <button
                 type="button"
                 onClick={() => void onCopyCaption()}
                 className="rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50"
-                title="Copia o texto + hashtags padrao"
+                title="Copia o texto + hashtags"
               >
-                {copied ? "Copiado!" : "Copiar"}
+                {copiedCaption ? "Copiado!" : "Copiar"}
               </button>
             </div>
           </div>

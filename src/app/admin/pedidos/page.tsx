@@ -139,7 +139,6 @@ export default function AdminPedidosPage() {
 
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // (de propósito: carregar 1x ao abrir)
 
   const filtered = useMemo(() => {
