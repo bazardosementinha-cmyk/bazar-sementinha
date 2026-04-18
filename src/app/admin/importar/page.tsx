@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 
 type ImportResult = { short_id: string; status: string };
 
@@ -125,6 +125,54 @@ function parseCsvLine(line: string, sep: string): string[] {
   return out;
 }
 
+/**
+ * Prompt FULL (blindado): copia via botao "Copiar prompt".
+ * Prompt COMPACTO: usado na URL do ChatGPT (evita estourar limite em mobile).
+ */
+const CHATGPT_PROMPT_FULL = `Voce e um assistente de catalogacao para um bazar beneficente (Brasil).
+
+Tarefa:
+- Analise de 3 a 7 fotos anexadas (um unico item).
+- Gere UM CSV com cabecalho + 1 linha, separador ";" e aspas quando necessario.
+- IMPORTANTE: no chat, responda SOMENTE com o CSV (nada alem do CSV).
+- Se sua interface permitir, crie tambem um ARQUIVO anexado para download chamado ITEM.csv com o mesmo conteudo do CSV.
+
+Formato do CSV:
+- Exatamente 2 linhas: (1) cabecalho (2) 1 linha do item.
+- Colunas (exatas e nesta ordem):
+title;description;category;condition;price;price_from;gender;age_group;season;size_type;size_value;location_box;notes_internal
+
+Regras de valores:
+- category: prefira uma destas: "Roupas", "Calcados", "Acessorios", "Outros". Se realmente precisar, pode sugerir outra, mas tente ficar nas 4.
+- condition: escolha UMA: "Novo", "Muito bom", "Bom", "Regular".
+- price e price_from: texto no formato brasileiro (ex.: "115,00"). Se nao houver etiqueta/preco visivel, estime conservador (preco de bazar).
+- gender (somente roupas): "feminino" | "masculino" | "unissex". Se nao for roupa, deixe vazio.
+- age_group (somente roupas): "infantil" | "adolescente" | "adulto". Se nao for roupa, deixe vazio.
+- season (somente roupas): "verao" | "inverno" | "meia_estacao" | "todas". Se nao for roupa, deixe vazio.
+- size_type: escolha UMA: "livre" | "roupa_letras" | "roupa_numero" | "calcado_br" | "infantil_idade" | "medidas_cm"
+- size_value: conforme size_type:
+  - roupa_letras: "PP" | "P" | "M" | "G" | "GG"
+  - roupa_numero: "38" (ex.)
+  - calcado_br: "40" (ex.)
+  - infantil_idade: "10 anos" (ex.)
+  - medidas_cm: "25cm" (ex.)
+  - livre: ""
+- location_box: deixe vazio
+- notes_internal: anote defeitos discretos se houver (ex.: "pequena mancha na foto 3"), senao vazio.
+
+CSV quoting (muito importante):
+- Se algum campo tiver ponto-e-virgula, aspas ou quebra de linha, coloque o campo entre aspas duplas.
+- Se houver aspas dentro do campo, duplique as aspas (ex.: "a""b").
+- Nao use texto fora do CSV.
+
+Deep Dive (aplicacao pratica):
+- Title: curto e instagramavel, padrao: objeto + atributo (cor/marca/tamanho), ex.: "Bolsa feminina marrom (tamanho medio)".
+- Description: curta, direta, sem exagero, SEM quebras de linha, com 1 beneficio claro + 1 linha de beneficio social. Limite ~180-220 caracteres.
+  Estrutura (uma frase so): [o que e + estado] + [beneficio (economiza/resolve/ajuda)] + [beneficio social: "100% do valor e revertido para a acao social do Bazar do Sementinha"].`;
+
+const CHATGPT_PROMPT_COMPACT =
+  'Voce e um assistente de catalogacao para um bazar beneficente (Brasil). Analise 3-7 fotos (1 item) e gere UM CSV (cabecalho + 1 linha) com separador ";" e aspas quando necessario. Responda SOMENTE o CSV. Se possivel, anexe tambem um arquivo ITEM.csv com o mesmo conteudo. Colunas exatas: title;description;category;condition;price;price_from;gender;age_group;season;size_type;size_value;location_box;notes_internal. Regras: category prefira Roupas/Calcados/Acessorios/Outros; condition Novo/Muito bom/Bom/Regular; price "115,00"; gender/age_group/season so roupas; size_type livre/roupa_letras/roupa_numero/calcado_br/infantil_idade/medidas_cm; location_box vazio; notes_internal defeitos discretos. Title instagramavel (objeto+atributo). Description 180-220 chars, sem quebra de linha, 1 beneficio + beneficio social: "100% do valor e revertido para a acao social do Bazar do Sementinha".';
+
 export default function CadastrarItemPage() {
   const formRef = useRef<HTMLFormElement | null>(null);
 
@@ -132,6 +180,7 @@ export default function CadastrarItemPage() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   const [categories, setCategories] = useState<string[]>(["Roupas", "Calcados", "Acessorios", "Outros"]);
 
@@ -192,6 +241,11 @@ export default function CadastrarItemPage() {
   const descCounterColor =
     descriptionChars > 320 ? "text-red-600" : descriptionChars > 280 ? "text-amber-600" : "text-slate-500";
 
+  const chatgptUrl = useMemo(() => {
+    const q = encodeURIComponent(CHATGPT_PROMPT_COMPACT);
+    return `https://chatgpt.com/?q=${q}&temporary-chat=true`;
+  }, []);
+
   async function loadCategories() {
     try {
       const resp = await fetch("/api/admin/categories");
@@ -213,11 +267,19 @@ export default function CadastrarItemPage() {
     if (!description.trim()) setDescription(deepDiveDescription("Item do Bazar", condition || "Muito bom"));
   }
 
-  async function onCopy() {
+  async function onCopyCaption() {
     const ok = await copyToClipboard(captionWithHashtags);
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
+    }
+  }
+
+  async function onCopyPrompt() {
+    const ok = await copyToClipboard(CHATGPT_PROMPT_FULL);
+    if (ok) {
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 1200);
     }
   }
 
@@ -272,7 +334,7 @@ export default function CadastrarItemPage() {
     }
   }
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -333,10 +395,25 @@ export default function CadastrarItemPage() {
       <div className="flex items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Cadastrar item (assistido)</h1>
+
+          {/* ✅ Link + botao copiar prompt (UX robusta p/ mobile) */}
           <p className="mt-1 text-slate-600">
-            Envie 3-6 fotos. Opcional: envie um CSV (1 item) gerado no ChatGPT para preencher os campos.
+            Envie 3-6 fotos. Opcional: gere um CSV (1 item) no{" "}
+            <a href={chatgptUrl} target="_blank" rel="noreferrer" className="font-semibold underline">
+              ChatGPT (prompt pronto)
+            </a>{" "}
+            para preencher os campos.{" "}
+            <button
+              type="button"
+              onClick={() => void onCopyPrompt()}
+              className="ml-2 rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50"
+              title="Copia o prompt FULL (blindado) para voce colar no ChatGPT"
+            >
+              {promptCopied ? "Prompt copiado!" : "Copiar prompt"}
+            </button>
           </p>
         </div>
+
         <Link
           href="/admin/itens"
           className="rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50"
@@ -372,9 +449,7 @@ export default function CadastrarItemPage() {
               className="mt-1 w-full rounded-xl border px-3 py-2"
               onChange={(e) => void onCsvChange(e.target.files?.[0] ?? null)}
             />
-            <div className="mt-1 text-xs text-slate-500">
-              Esperado: separador &quot;;&quot;, cabecalho + 1 linha.
-            </div>
+            <div className="mt-1 text-xs text-slate-500">Esperado: separador &quot;;&quot;, cabecalho + 1 linha.</div>
           </div>
 
           <div>
@@ -615,7 +690,7 @@ export default function CadastrarItemPage() {
               <div className="text-xs text-slate-500">{captionChars} chars</div>
               <button
                 type="button"
-                onClick={() => void onCopy()}
+                onClick={() => void onCopyCaption()}
                 className="rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:bg-slate-50"
                 title="Copia o texto + hashtags padrao"
               >
