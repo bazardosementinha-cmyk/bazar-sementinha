@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import AdminNavPills from "@/components/AdminNavPills";
 import { formatBRL, statusLabel, type ItemStatus } from "@/lib/utils";
 
 type Row = { status: ItemStatus; count: number; total: number };
@@ -11,24 +11,23 @@ export default function RelatorioPage() {
   const [soldTotal, setSoldTotal] = useState<number>(0);
 
   async function load() {
-    const resp = await fetch("/api/admin/report");
+    const resp = await fetch("/api/admin/report", { credentials: "include" });
     const data = await resp.json();
-    setRows(data.rows || []);
-    setSoldTotal(data.sold_total || 0);
+    setRows((data?.rows as Row[]) || []);
+    setSoldTotal(Number(data?.sold_total || 0));
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/importar">Importar</Link>
-        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/itens">Itens</Link>
-        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/pedidos">Pedidos</Link>
-        <Link className="rounded-xl border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50" href="/admin/relatorio">Relatório</Link>
-      </div>
-      <h1 className="text-2xl font-bold">Relatório (transparência)</h1>
-      <p className="mt-1 text-slate-600">Resumo por status e total vendido (demo).</p>
+      {/* ✅ Mesma navegação (sem Importar) e com "Relatório" ativo */}
+      <AdminNavPills />
+
+      <h1 className="mt-4 text-2xl font-bold">Relatório (transparência)</h1>
+      <p className="mt-1 text-slate-600">Resumo por status e total vendido.</p>
 
       <div className="mt-4 rounded-2xl border bg-white p-4">
         <div className="text-sm text-slate-600">Total vendido</div>
@@ -52,16 +51,13 @@ export default function RelatorioPage() {
                 <td className="px-3 py-2">{formatBRL(r.total)}</td>
               </tr>
             ))}
-            {!rows.length ? (
-              <tr><td className="px-3 py-6 text-center text-slate-500" colSpan={3}>Sem dados.</td></tr>
-            ) : null}
           </tbody>
         </table>
       </div>
 
-      <div className="mt-4 text-xs text-slate-500">
+      <p className="mt-4 text-xs text-slate-500">
         Observação: no piloto real, este relatório pode ser filtrado por período e exportado (CSV/PDF).
-      </div>
+      </p>
     </div>
   );
 }
