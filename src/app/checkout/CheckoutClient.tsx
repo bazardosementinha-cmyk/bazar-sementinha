@@ -1,328 +1,619 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AddToCartButton } from "@/components/AddToCartButton";
 
 type ItemStatus = "review" | "available" | "reserved" | "sold";
 
-type PublicItem = {
+type Item = {
+  id: string;
   short_id: string;
-  title: string | null;
+  title: string;
   category: string | null;
   condition: string | null;
-  price: number | null;
-  price_from: number | null;
+  price: number;
   status: ItemStatus;
 };
 
-type ItemsResponse = { items: PublicItem[]; error?: string };
-type CreateResponse = { ok?: boolean; error?: string; order_id?: string; whatsapp_url?: string; expires_at?: string };
-type RecoResponse = { items: PublicItem[]; error?: string };
+type PaymentPlan = "pix_now" | "card_pickup_deposit" | "pay_pickup_24h";
 
-function safeJsonParse<T>(raw: string | null): T | null {
-  if (!raw) return null;
+type CreateOrderResponse = {
+  ok: true;
+  order: {
+    id: string;
+    code: string;
+    status: string;
+    total: number;
+    payment_plan: PaymentPlan;
+    deposit_required: boolean;
+    deposit_amount: number | null;
+    expires_at: string | null;
+    pickup_deadline_at: string | null;
+  };
+  pix: { key: string; favored: string };
+  whatsapp_url: string;
+};
+
+const CART_LS_KEY = "bazar_cart";
+const PIX_KEY = "58.392.598/0001-91";
+const PIX_FAVORED = "Templo de Umbanda Caboclo Sete Flexa";
+const SUPPORT_WA = "5519992360856";
+
+function readCart(): string[] {
+  if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(raw) as T;
+    const raw = localStorage.getItem(CART_LS_KEY);
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((x) => typeof x === "string") as string[];
   } catch {
-    return null;
+    return [];
   }
 }
 
-function formatMoneyBR(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "0,00";
-  return value.toFixed(2).replace(".", ",");
+function writeCart(ids: string[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(CART_LS_KEY, JSON.stringify(ids));
+  window.dispatchEvent(new Event("storage"));
 }
 
-function getCartIds(): string[] {
-  const raw = typeof window !== "undefined" ? window.localStorage.getItem("bazar_cart") : null;
-  const arr = safeJsonParse<unknown>(raw);
-  if (!Array.isArray(arr)) return [];
-  return arr.map(String).map((s) => s.trim()).filter(Boolean);
+function formatBRL(value: number) {
+  return value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function setCartIds(ids: string[]) {
-  window.localStorage.setItem("bazar_cart", JSON.stringify(ids));
-  window.dispatchEvent(new Event("bazar_cart_updated"));
+function safeJson<T>(text: string): T {
+  return JSON.parse(text) as T;
+}
+
+function waLink(text: string) {
+  return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(text)}`;
 }
 
 export default function CheckoutClient() {
-  const [cartItems, setCartItems] = useState<PublicItem[]>([]);
-  const [reco, setReco] = useState<PublicItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const sp = useSearchParams();
+  const buy = sp.get("buy");
 
-  const [name, setName] = useState("");
+  const [cartIds, setCartIds] = useState<string[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  const [customerName, setCustomerName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
-  const [optIn, setOptIn] = useState(false);
+  const [optInMarketing, setOptInMarketing] = useState(false);
 
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<CreateResponse | null>(null);
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("pix_now");
 
-  const availableItems = useMemo(() => cartItems.filter((x) => x.status === "available"), [cartItems]);
+  const [recommendations, setRecommendations] = useState<Item[]>([]);
+  const [loadingRecs, setLoadingRecs] = useState(false);
 
-  const total = useMemo(
-    () => availableItems.reduce((sum, it) => sum + (it.price ?? 0), 0),
-    [availableItems]
-  );
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string>("");
+  const [created, setCreated] = useState<CreateOrderResponse | null>(null);
 
-  async function loadCart() {
-    setError(null);
-    setLoading(true);
-    try {
-      const ids = getCartIds();
-
-      if (!ids.length) {
-        setCartItems([]);
-        setReco([]);
-        return;
-      }
-
-      const res = await fetch(`/api/public/items?short_ids=${encodeURIComponent(ids.join(","))}`, { cache: "no-store" });
-      const json = (await res.json()) as ItemsResponse;
-      if (!res.ok || json.error) throw new Error(json.error || "Falha ao carregar itens.");
-      // Keep original cart order
-      const byId = new Map((json.items ?? []).map((it) => [it.short_id, it] as const));
-      const ordered = ids.map((id) => byId.get(id)).filter((v): v is PublicItem => Boolean(v));
-      setCartItems(ordered);
-
-      // Recommendations
-      const recoRes = await fetch(`/api/public/recommendations?exclude=${encodeURIComponent(ids.join(","))}&limit=6`, { cache: "no-store" });
-      const recoJson = (await recoRes.json()) as RecoResponse;
-      if (!recoRes.ok || recoJson.error) throw new Error(recoJson.error || "Falha ao carregar recomendações.");
-      setReco(recoJson.items ?? []);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Erro inesperado.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // 1) Carrega carrinho + aplica "buy" (Comprar agora)
   useEffect(() => {
-    loadCart();
-    const onCart = () => loadCart();
-    window.addEventListener("bazar_cart_updated", onCart);
-    return () => window.removeEventListener("bazar_cart_updated", onCart);
+    const ids = readCart();
+    if (buy && typeof window !== "undefined") {
+      const next = Array.from(new Set([buy, ...ids]));
+      writeCart(next);
+      setCartIds(next);
+    } else {
+      setCartIds(ids);
+    }
+  }, [buy]);
+
+  // 2) Carrega itens do carrinho
+  useEffect(() => {
+    const ids = cartIds;
+    if (!ids.length) {
+      setItems([]);
+      return;
+    }
+
+    setLoadingItems(true);
+    setError("");
+
+    const qs = new URLSearchParams();
+    qs.set("short_ids", ids.join(","));
+
+    fetch(`/api/public/items?${qs.toString()}`, { cache: "no-store" })
+      .then(async (r) => {
+        const txt = await r.text();
+        if (!r.ok) throw new Error(txt || "Falha ao carregar itens.");
+        return safeJson<{ items: Item[] }>(txt);
+      })
+      .then((data) => setItems(data.items || []))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setLoadingItems(false));
+  }, [cartIds]);
+
+  // 3) Carrega recomendações (Complete sua seleção)
+  useEffect(() => {
+    const exclude = cartIds;
+    setLoadingRecs(true);
+
+    const qs = new URLSearchParams();
+    if (exclude.length) qs.set("exclude", exclude.join(","));
+
+    fetch(`/api/public/recommendations?${qs.toString()}`, { cache: "no-store" })
+      .then(async (r) => {
+        const txt = await r.text();
+        if (!r.ok) throw new Error(txt || "Falha ao carregar recomendações.");
+        return safeJson<{ items: Item[] }>(txt);
+      })
+      .then((data) => setRecommendations(data.items || []))
+      .catch(() => setRecommendations([]))
+      .finally(() => setLoadingRecs(false));
+  }, [cartIds]);
+
+  const availableItems = useMemo(() => items.filter((it) => it.status === "available"), [items]);
+  const total = useMemo(() => availableItems.reduce((sum, it) => sum + (Number(it.price) || 0), 0), [availableItems]);
+
+  const onAutofill = useCallback(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem("bazar_customer");
+      if (!raw) return;
+      const data = safeJson<{ name?: string; whatsapp?: string; email?: string; optInMarketing?: boolean }>(raw);
+      if (data.name) setCustomerName(data.name);
+      if (data.whatsapp) setWhatsapp(data.whatsapp);
+      if (data.email) setEmail(data.email);
+      setOptInMarketing(Boolean(data.optInMarketing));
+    } catch {
+      // ignore
+    }
   }, []);
 
-  function clearCart() {
-    setCartIds([]);
-    loadCart();
-  }
+  const onCreate = useCallback(async () => {
+    setError("");
+    setCreated(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    setSuccess(null);
+    if (!customerName.trim()) {
+      setError("Informe seu nome.");
+      return;
+    }
+
+    if (!whatsapp.trim()) {
+      setError("Informe seu WhatsApp.");
+      return;
+    }
+
+    if (!availableItems.length) {
+      setError("Seu carrinho está vazio (ou não há itens disponíveis).");
+      return;
+    }
+
+    setCreating(true);
 
     try {
-      const cart_short_ids = availableItems.map((x) => x.short_id);
+      const payload = {
+        cart_short_ids: availableItems.map((it) => it.short_id),
+        payment_plan: paymentPlan,
+        customer: {
+          name: customerName.trim(),
+          whatsapp: whatsapp.trim(),
+          email: email.trim() || undefined,
+          opt_in_marketing: optInMarketing,
+        },
+      };
 
-      const res = await fetch("/api/checkout/create", {
+      const resp = await fetch("/api/checkout/create", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          cart_short_ids,
-          customer: {
-            name: name.trim() || null,
-            whatsapp: whatsapp.trim(),
-            email: email.trim() || null,
-            opt_in_marketing: optIn,
-          },
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
-      const json = (await res.json()) as CreateResponse;
-      if (!res.ok || json.error) throw new Error(json.error || "Falha ao criar pedido.");
+      const txt = await resp.text();
+      if (!resp.ok) throw new Error(txt || "Não foi possível criar o pedido.");
 
-      setSuccess(json);
+      const data = safeJson<CreateOrderResponse>(txt);
+      setCreated(data);
 
-      // Optional: clear cart after creating order
+      // salva dados
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "bazar_customer",
+          JSON.stringify({
+            name: payload.customer.name,
+            whatsapp: payload.customer.whatsapp,
+            email: payload.customer.email || "",
+            optInMarketing: payload.customer.opt_in_marketing,
+          })
+        );
+      }
+
+      // limpa carrinho (pedido criado)
+      writeCart([]);
       setCartIds([]);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro inesperado.");
+      setItems([]);
+
+      // abre WhatsApp já com mensagem pronta
+      if (data.whatsapp_url) {
+        window.open(data.whatsapp_url, "_blank");
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setSubmitting(false);
+      setCreating(false);
     }
-  }
+  }, [availableItems, paymentPlan, customerName, whatsapp, email, optInMarketing]);
 
+  const planHint = useMemo(() => {
+    if (paymentPlan === "pix_now") {
+      return {
+        title: "Pix agora (recomendado)",
+        desc: "Você já paga o valor total e acelera a confirmação pelo WhatsApp. Prazo padrão: 24h.",
+      };
+    }
+
+    if (paymentPlan === "card_pickup_deposit") {
+      return {
+        title: "Cartão na retirada (caução Pix R$ 10,00)",
+        desc: "Faça um Pix de R$ 10,00 (caução) para segurar o pedido. Prazo máximo: 15 dias. A caução é devolvida na retirada/pagamento.",
+      };
+    }
+
+    return {
+      title: "Pagar na retirada (Pix ou cartão)",
+      desc: "Você paga na retirada. Se não pagar em 24h, o pedido pode ser cancelado automaticamente.",
+    };
+  }, [paymentPlan]);
+
+  const createdTotalStr = created ? formatBRL(created.order.total) : "";
+
+  const receiptMessage = useMemo(() => {
+    if (!created) return "";
+    return `Olá! Segue o comprovante do Pix do pedido ${created.order.code}. Total: R$ ${createdTotalStr}.`;
+  }, [created, createdTotalStr]);
+
+  // UI
   return (
-    <div className="mt-6 space-y-6">
-      {error ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
-      ) : null}
-
-      {success?.ok ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          Pedido criado com sucesso.{" "}
-          {success.whatsapp_url ? (
-            <a className="font-semibold underline" href={success.whatsapp_url} target="_blank" rel="noreferrer">
-              Clique aqui para abrir o WhatsApp
-            </a>
-          ) : null}
+    <div className="max-w-3xl mx-auto px-4 py-10">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Finalizar pedido</h1>
+          <p className="text-sm text-muted-foreground">
+            Informe seus dados para atendimento no <span className="font-medium">WhatsApp</span>. Promoções só com consentimento.
+          </p>
         </div>
-      ) : null}
-
-      <div className="rounded-2xl border bg-white p-5">
-        <div className="flex items-center justify-between">
-          <div className="text-base font-semibold">Itens</div>
-          <button className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50" onClick={loadCart} type="button">
-            Atualizar
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="mt-3 text-sm text-gray-600">Carregando…</div>
-        ) : availableItems.length === 0 ? (
-          <div className="mt-3 text-sm text-gray-700">Seu carrinho está vazio (ou não há itens disponíveis).</div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            {availableItems.map((it) => (
-              <div key={it.short_id} className="flex items-start justify-between gap-3 rounded-xl border p-4">
-                <div>
-                  <div className="text-sm font-semibold">
-                    {it.title ?? "Item do Bazar"}{" "}
-                    <span className="text-xs font-normal text-gray-500">#{it.short_id}</span>
-                  </div>
-                  <div className="mt-1 text-xs text-gray-600">
-                    {it.category ?? "Outros"} • {it.condition ?? "Muito bom"} •{" "}
-                    <span className="font-semibold">R$ {formatMoneyBR(it.price)}</span>
-                  </div>
-                </div>
-                <div className="text-sm font-semibold">R$ {formatMoneyBR(it.price)}</div>
-              </div>
-            ))}
-
-            <div className="flex items-center justify-between border-t pt-3">
-              <div className="text-sm text-gray-600">Total</div>
-              <div className="text-lg font-semibold">R$ {formatMoneyBR(total)}</div>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-4 flex items-center justify-between">
-          <button className="text-sm underline" onClick={clearCart} type="button">
-            Limpar carrinho
-          </button>
-          <Link href="/carrinho" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
-            Voltar ao carrinho
-          </Link>
-        </div>
+        <Link href="/carrinho" className="text-sm rounded-full border px-4 py-2 hover:bg-white">
+          Voltar ao carrinho
+        </Link>
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-2xl border bg-white p-5">
-        <div className="text-base font-semibold">Seus dados</div>
+      {error ? (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="text-sm font-medium">Nome</label>
-            <input
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Seu nome"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">WhatsApp (obrigatório)</label>
-            <input
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              value={whatsapp}
-              onChange={(e) => setWhatsapp(e.target.value)}
-              placeholder="(DD) 9xxxx-xxxx"
-              required
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="text-sm font-medium">E-mail (opcional)</label>
-            <input
-              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="voce@exemplo.com"
-              type="email"
-            />
-          </div>
-
-          <label className="sm:col-span-2 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
-            Quero receber novidades e promoções (opcional).
-          </label>
-        </div>
-
-        <button
-          className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-          disabled={submitting || availableItems.length === 0}
-          type="submit"
-        >
-          {submitting ? "Criando..." : "Criar pedido"}
-        </button>
-      </form>
-
-      {/* Deep Dive: gentle cross-sell on checkout too */}
-      {reco.length ? (
-        <section className="rounded-2xl border bg-white p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      {created ? (
+        <div className="mt-6 rounded-2xl border bg-white p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold">Complete sua seleção</h2>
-              <p className="mt-1 text-sm text-gray-700">
-                Se fizer sentido, inclua mais 1 ou 2 itens — você economiza e ainda apoia a ação social do Bazar do Sementinha.
-              </p>
+              <div className="text-sm text-muted-foreground">Pedido criado</div>
+              <div className="text-xl font-semibold">#{created.order.code}</div>
             </div>
-            <Link href="/" className="text-sm font-medium underline">
+            <a
+              href={created.whatsapp_url}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg px-4 py-2 text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              Abrir WhatsApp
+            </a>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border p-4">
+              <div className="font-semibold">Pagamento</div>
+              <div className="text-sm text-muted-foreground mt-1">{planHint.title}</div>
+              <div className="text-sm mt-2">Total: <span className="font-medium">R$ {createdTotalStr}</span></div>
+            </div>
+
+            <div className="rounded-xl border p-4">
+              <div className="font-semibold">Pix</div>
+              <div className="text-sm text-muted-foreground mt-1">{created.pix.favored}</div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <code className="rounded bg-gray-50 px-2 py-1 text-sm">{created.pix.key}</code>
+                <button
+                  type="button"
+                  className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
+                  onClick={() => navigator.clipboard.writeText(created.pix.key)}
+                >
+                  Copiar chave
+                </button>
+              </div>
+              <div className="mt-3">
+                <a
+                  href={waLink(receiptMessage)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex rounded-lg px-3 py-2 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800"
+                >
+                  Enviar comprovante no WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 text-sm text-muted-foreground">
+            Dica: você pode continuar comprando e fazer novos pedidos (um por vez) se preferir.
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/" className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">
+              Ver catálogo
+            </Link>
+            <Link href="/carrinho" className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">
+              Ir ao carrinho
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Itens */}
+      {!created ? (
+        <div className="mt-6 rounded-2xl border bg-white p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="font-semibold">Itens</div>
+            <button
+              type="button"
+              className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
+              onClick={() => setCartIds(readCart())}
+              disabled={loadingItems}
+            >
+              Atualizar
+            </button>
+          </div>
+
+          {loadingItems ? (
+            <div className="mt-3 text-sm text-muted-foreground">Carregando…</div>
+          ) : availableItems.length ? (
+            <div className="mt-3 grid gap-2">
+              {availableItems.map((it) => (
+                <div key={it.id} className="flex items-start justify-between gap-3 rounded-xl border p-4">
+                  <div>
+                    <div className="font-medium">{it.title} <span className="text-muted-foreground">#{it.short_id}</span></div>
+                    <div className="text-sm text-muted-foreground">
+                      {(it.category || "Outros") + " • " + (it.condition || "")}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold">R$ {formatBRL(Number(it.price) || 0)}</div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="mt-1 flex items-center justify-between px-1">
+                <div className="text-sm text-muted-foreground">Total</div>
+                <div className="text-lg font-semibold">R$ {formatBRL(total)}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 text-sm text-muted-foreground">Seu carrinho está vazio (ou não há itens disponíveis).</div>
+          )}
+
+          <div className="mt-3">
+            <button
+              type="button"
+              className="text-sm text-slate-700 hover:underline"
+              onClick={() => {
+                writeCart([]);
+                setCartIds([]);
+                setItems([]);
+              }}
+            >
+              Limpar carrinho
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Seus dados */}
+      {!created ? (
+        <div className="mt-6 rounded-2xl border bg-white p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="font-semibold">Seus dados</div>
+            <button
+              type="button"
+              className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
+              onClick={onAutofill}
+            >
+              Preencher com dados salvos
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-medium">Nome</label>
+              <input
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Seu nome"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">WhatsApp (obrigatório)</label>
+              <input
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="(DD) 9xxxx-xxxx"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium">E-mail (opcional)</label>
+              <input
+                className="mt-1 w-full rounded-lg border px-3 py-2"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="voce@exemplo.com"
+              />
+            </div>
+
+            <label className="md:col-span-2 flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={optInMarketing} onChange={(e) => setOptInMarketing(e.target.checked)} />
+              Quero receber novidades e promoções (opcional).
+            </label>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Pagamento */}
+      {!created ? (
+        <div className="mt-6 rounded-2xl border bg-white p-5">
+          <div className="font-semibold">Como você prefere pagar?</div>
+          <div className="mt-3 grid gap-3">
+            <label className="flex gap-3 rounded-xl border p-4 cursor-pointer">
+              <input
+                type="radio"
+                name="payment"
+                value="pix_now"
+                checked={paymentPlan === "pix_now"}
+                onChange={() => setPaymentPlan("pix_now")}
+              />
+              <div>
+                <div className="font-medium">Pix agora (valor total)</div>
+                <div className="text-sm text-muted-foreground">Recomendado para confirmar rápido. Prazo padrão: 24h.</div>
+              </div>
+            </label>
+
+            <label className="flex gap-3 rounded-xl border p-4 cursor-pointer">
+              <input
+                type="radio"
+                name="payment"
+                value="card_pickup_deposit"
+                checked={paymentPlan === "card_pickup_deposit"}
+                onChange={() => setPaymentPlan("card_pickup_deposit")}
+              />
+              <div>
+                <div className="font-medium">Cartão na retirada (caução Pix R$ 10,00)</div>
+                <div className="text-sm text-muted-foreground">Prazo máximo: 15 dias. Caução devolvida na retirada/pagamento.</div>
+              </div>
+            </label>
+
+            <label className="flex gap-3 rounded-xl border p-4 cursor-pointer">
+              <input
+                type="radio"
+                name="payment"
+                value="pay_pickup_24h"
+                checked={paymentPlan === "pay_pickup_24h"}
+                onChange={() => setPaymentPlan("pay_pickup_24h")}
+              />
+              <div>
+                <div className="font-medium">Pagar na retirada (Pix ou cartão)</div>
+                <div className="text-sm text-muted-foreground">Se não pagar em 24h, o pedido pode ser cancelado automaticamente.</div>
+              </div>
+            </label>
+          </div>
+
+          <div className="mt-4 rounded-xl border p-4">
+            <div className="font-semibold">Pix</div>
+            <div className="text-sm text-muted-foreground">{PIX_FAVORED}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <code className="rounded bg-gray-50 px-2 py-1 text-sm">{PIX_KEY}</code>
+              <button
+                type="button"
+                className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
+                onClick={() => navigator.clipboard.writeText(PIX_KEY)}
+              >
+                Copiar chave
+              </button>
+            </div>
+            <div className="mt-2 text-sm text-muted-foreground">
+              Após criar o pedido, você verá o código e poderá enviar o comprovante no WhatsApp com 1 clique.
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <button
+              type="button"
+              className={
+                "w-full rounded-xl px-4 py-3 text-sm font-medium " +
+                (creating
+                  ? "bg-gray-200 text-gray-600"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700")
+              }
+              onClick={onCreate}
+              disabled={creating}
+            >
+              {creating ? "Criando pedido…" : "Criar pedido"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Complete sua seleção (Deep Dive leve) */}
+      {!created ? (
+        <div className="mt-6 rounded-2xl border bg-white p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="font-semibold">Complete sua seleção</div>
+              <div className="text-sm text-muted-foreground">Se fizer sentido, inclua mais 1 ou 2 itens — você economiza e ainda apoia a ação social do Bazar do Sementinha.</div>
+            </div>
+            <Link href="/" className="text-sm rounded-full border px-4 py-2 hover:bg-gray-50">
               Ver tudo no catálogo
             </Link>
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {reco.map((it) => (
-              <div key={it.short_id} className="rounded-xl border p-4">
-                <div className="text-sm font-semibold line-clamp-2">{it.title ?? "Item do Bazar"}</div>
-                <div className="mt-1 text-xs text-gray-600">
-                  {it.category ?? "Outros"} • {it.condition ?? "Muito bom"}
+          {loadingRecs ? (
+            <div className="mt-3 text-sm text-muted-foreground">Carregando…</div>
+          ) : recommendations.length ? (
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {recommendations.slice(0, 4).map((it) => (
+                <div key={it.id} className="rounded-xl border p-4">
+                  <div className="font-medium">{it.title}</div>
+                  <div className="text-sm text-muted-foreground">{(it.category || "Outros") + " • " + (it.condition || "")}</div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="font-semibold">R$ {formatBRL(Number(it.price) || 0)}</div>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/i/${it.short_id}`} className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50">Ver</Link>
+                      <AddToCartButton shortId={it.short_id} status={it.status} />
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-2 text-sm font-semibold">R$ {formatMoneyBR(it.price)}</div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3 text-sm text-muted-foreground">Sem recomendações no momento.</div>
+          )}
 
-                <div className="mt-3 flex items-center gap-2">
-                  <Link
-                    href={`/i/${encodeURIComponent(it.short_id)}`}
-                    className="rounded-lg border px-3 py-2 text-xs hover:bg-gray-50"
-                  >
-                    Ver
-                  </Link>
-                  <AddToCartButton shortId={it.short_id} disabled={it.status !== "available"} />
-                </div>
-              </div>
-            ))}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm text-muted-foreground">Pronto para finalizar?</div>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="rounded-lg px-3 py-2 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800"
+            >
+              Ir para o topo
+            </a>
           </div>
-
-          <div className="mt-4 text-sm text-gray-700">
-            <Link href="/" className="font-medium underline">
-              Continuar comprando
-            </Link>
-          </div>
-        </section>
+        </div>
       ) : null}
 
-      {/* Informações Importantes */}
-      <section className="rounded-2xl border bg-white p-5">
-        <h2 className="text-base font-semibold">Informações Importantes</h2>
-        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-gray-800">
+      {/* Informações importantes */}
+      <div className="mt-6 rounded-2xl border bg-white p-5">
+        <div className="font-semibold">Informações Importantes</div>
+        <ul className="mt-3 list-disc pl-5 text-sm text-muted-foreground space-y-1">
           <li>
-            Pagamento por <b>Pix</b> ou <b>Cartão de Crédito</b> (para cartão: fazer um Pix de <b>R$ 10,00</b> para reserva; o valor é devolvido no pagamento/retirada).
+            Pagamento por <span className="font-medium text-slate-900">Pix</span> ou <span className="font-medium text-slate-900">Cartão de Crédito</span> (para cartão: fazer um Pix de <span className="font-medium text-slate-900">R$ 10,00</span> para reserva; o valor é devolvido no pagamento/retirada).
           </li>
           <li>
-            Retirada no <b>TUCXA2</b> (Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP) conforme data e horário combinado.
+            Retirada no <span className="font-medium text-slate-900">TUCXA2</span> (Rua Francisco de Assis Pupo, 390 – Vila Industrial – Campinas/SP) conforme data e horário combinado.
           </li>
           <li>
-            <b>Não realizamos trocas.</b>
+            <span className="font-medium text-slate-900">Não realizamos trocas.</span>
           </li>
         </ul>
-      </section>
+      </div>
     </div>
   );
 }

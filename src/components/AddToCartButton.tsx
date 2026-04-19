@@ -1,65 +1,80 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import type { ItemStatus } from "@/lib/utils";
 
-function readCart(): string[] {
-  try {
-    const raw = localStorage.getItem("bazar_cart");
-    const arr = raw ? (JSON.parse(raw) as unknown) : [];
-    if (!Array.isArray(arr)) return [];
-    return arr.filter((x) => typeof x === "string");
-  } catch {
-    return [];
-  }
-}
+const CART_LS_KEY = "bazar_cart";
 
-function writeCart(ids: string[]) {
-  localStorage.setItem("bazar_cart", JSON.stringify(ids));
-  window.dispatchEvent(new Event("bazar_cart_updated"));
-}
-
-export function AddToCartButton({
-  shortId,
-  disabled,
-}: {
+type Props = {
   shortId: string;
   disabled?: boolean;
-}) {
-  const [inCart, setInCart] = useState(false);
+  /**
+   * Opcional: se informado e o item não estiver disponível, o botão fica desabilitado.
+   * (Útil para cards de recomendações.)
+   */
+  status?: ItemStatus;
+};
 
-  useEffect(() => {
-    const ids = readCart();
-    setInCart(ids.includes(shortId));
+export function AddToCartButton({ shortId, disabled, status }: Props) {
+  const [busy, setBusy] = useState(false);
+
+  const isUnavailableByStatus = useMemo(() => {
+    if (!status) return false;
+    return status !== "available";
+  }, [status]);
+
+  const inCart = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = localStorage.getItem(CART_LS_KEY);
+      const arr = raw ? (JSON.parse(raw) as unknown) : [];
+      return Array.isArray(arr) && arr.includes(shortId);
+    } catch {
+      return false;
+    }
+  }, [shortId, busy]);
+
+  const onClick = useCallback(() => {
+    if (typeof window === "undefined") return;
+    setBusy(true);
+    try {
+      const raw = localStorage.getItem(CART_LS_KEY);
+      const arr = raw ? (JSON.parse(raw) as unknown) : [];
+      const list = Array.isArray(arr) ? (arr.filter((x) => typeof x === "string") as string[]) : [];
+
+      if (!list.includes(shortId)) {
+        list.push(shortId);
+      }
+
+      localStorage.setItem(CART_LS_KEY, JSON.stringify(list));
+      // força atualização do CartButton
+      window.dispatchEvent(new Event("storage"));
+    } finally {
+      setBusy(false);
+    }
   }, [shortId]);
 
-  const label = useMemo(() => {
-    if (disabled) return "Indisponível";
-    if (inCart) return "Já está no carrinho";
-    return "Adicionar ao carrinho";
-  }, [disabled, inCart]);
-
-  function onClick() {
-    if (disabled) return;
-    const ids = readCart();
-    if (!ids.includes(shortId)) {
-      ids.unshift(shortId);
-      writeCart(ids);
-      setInCart(true);
-    }
-  }
+  const isDisabled = Boolean(disabled) || busy || inCart || isUnavailableByStatus;
+  const label = isUnavailableByStatus ? "Indisponível" : inCart ? "No carrinho" : "Adicionar ao carrinho";
 
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled || inCart}
+      disabled={isDisabled}
       className={
-        disabled || inCart
-          ? "rounded-2xl border bg-white px-4 py-3 text-center font-semibold text-slate-400"
-          : "rounded-2xl bg-slate-900 px-4 py-3 text-center font-semibold text-white hover:bg-black"
+        "rounded-lg px-3 py-2 text-sm font-medium border " +
+        (isDisabled
+          ? "bg-gray-100 text-gray-500 border-gray-200"
+          : "bg-slate-900 text-white border-slate-900 hover:bg-slate-800")
       }
+      aria-label={label}
+      title={label}
     >
       {label}
     </button>
   );
 }
+
+// Compatibilidade: alguns pontos do projeto usavam import default.
+export default AddToCartButton;

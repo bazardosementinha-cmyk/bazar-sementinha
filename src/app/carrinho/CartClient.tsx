@@ -77,7 +77,6 @@ export default function CartClient() {
         const res = await fetch(`/api/public/items?short_ids=${encodeURIComponent(ids.join(","))}`, { cache: "no-store" });
         const json = (await res.json()) as ItemsResponse;
         if (!res.ok || json.error) throw new Error(json.error || "Falha ao carregar itens do carrinho.");
-
         // Keep original cart order
         const byId = new Map((json.items ?? []).map((it) => [it.short_id, it] as const));
         setItems(ids.map((id) => byId.get(id)).filter((v): v is PublicItem => Boolean(v)));
@@ -225,7 +224,7 @@ export default function CartClient() {
                       >
                         Ver
                       </Link>
-                      <AddToCartButton shortId={it.short_id} disabled={it.status !== "available"} />
+                      <AddToCartButton shortId={it.short_id} status={it.status} />
                     </div>
                   </div>
                 ))}
