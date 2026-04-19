@@ -1,12 +1,12 @@
-import Link from "next/link";
-
 import { Shell, TopBar } from "@/components/Shell";
 import { StatusBadge } from "@/components/Badge";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import { BuyNowButton } from "@/components/BuyNowButton";
 import { formatBRL } from "@/lib/utils";
 import { getItemByShortId, getItemPhotos, signedUrlsForPaths } from "@/lib/db";
 
 type Props = {
+  // Next 15 types às vezes tipam `params` como Promise em rotas dinâmicas.
   params: Promise<{ shortId: string }>;
 };
 
@@ -14,7 +14,6 @@ export default async function ItemPage({ params }: Props) {
   const { shortId } = await params;
 
   const item = await getItemByShortId(shortId);
-
   if (!item) {
     return (
       <>
@@ -27,28 +26,19 @@ export default async function ItemPage({ params }: Props) {
     );
   }
 
-  // Fotos (Supabase Storage)
   const photos = await getItemPhotos(item.id);
   const paths = photos.map((p) => p.storage_path);
   const signedMap = paths.length ? await signedUrlsForPaths(paths) : {};
-  const signedUrls = photos
-    .map((p) => signedMap[p.storage_path])
-    .filter((u): u is string => typeof u === "string" && u.length > 0);
-
-  const canAddToCart = item.status === "available";
-
-  // WhatsApp suporte (por enquanto seu número)
-  const SUPPORT_WA_E164 = "5519992360856"; // +55 19 99236-0856
-
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
-  const itemUrl = siteUrl ? `${siteUrl}/i/${item.short_id}` : `/i/${item.short_id}`;
-
-  const msg = encodeURIComponent(
-    `Olá! Tenho interesse no item #${item.short_id} (${item.title}).\nLink: ${itemUrl}\nEle ainda está disponível?`
-  );
-  const waLink = `https://wa.me/${SUPPORT_WA_E164}?text=${msg}`;
+  const signedUrls = photos.map((p) => signedMap[p.storage_path]).filter(Boolean);
 
   const address = "Rua Francisco de Assis Pupo, 390 – Vila Industrial – Campinas/SP";
+
+  // WhatsApp (por enquanto: Gabriel)
+  const waNumber = "5519992360856";
+  const waMsg = encodeURIComponent(`Olá! Tenho interesse no item #${item.short_id}. Ele ainda está disponível?`);
+  const waLink = `https://wa.me/${waNumber}?text=${waMsg}`;
+
+  const canBuy = item.status === "available";
 
   return (
     <>
@@ -72,7 +62,7 @@ export default async function ItemPage({ params }: Props) {
             ) : null}
             <span className="text-2xl font-extrabold">{formatBRL(item.price)}</span>
           </div>
-          {item.description ? <p className="mt-3 whitespace-pre-line text-slate-700">{item.description}</p> : null}
+          {item.description ? <p className="mt-3 text-slate-700 whitespace-pre-line">{item.description}</p> : null}
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -89,27 +79,9 @@ export default async function ItemPage({ params }: Props) {
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <AddToCartButton shortId={item.short_id} disabled={!canAddToCart} />
-
-          {canAddToCart ? (
-            <Link
-              href={`/checkout?buy=${encodeURIComponent(item.short_id)}`}
-              className="rounded-2xl border bg-white px-4 py-3 text-center font-semibold hover:bg-slate-50"
-            >
-              Comprar agora
-            </Link>
-          ) : (
-            <span className="rounded-2xl border bg-slate-50 px-4 py-3 text-center font-semibold text-slate-400">
-              Comprar agora
-            </span>
-          )}
-
-          <a
-            href={waLink}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-2xl bg-emerald-600 px-4 py-3 text-center font-semibold text-white hover:bg-emerald-700"
-          >
+          <AddToCartButton shortId={item.short_id} disabled={!canBuy} />
+          <BuyNowButton shortId={item.short_id} disabled={!canBuy} />
+          <a href={waLink} className="rounded-2xl bg-emerald-600 px-4 py-3 text-center font-semibold text-white hover:bg-emerald-700">
             Dúvidas? Clique aqui.
           </a>
         </div>
