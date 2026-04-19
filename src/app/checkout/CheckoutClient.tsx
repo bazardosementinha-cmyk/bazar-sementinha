@@ -1,264 +1,328 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { formatBRL } from "@/lib/utils";
+import { AddToCartButton } from "@/components/AddToCartButton";
 
-type ItemRow = {
-  id: string;
+type ItemStatus = "review" | "available" | "reserved" | "sold";
+
+type PublicItem = {
   short_id: string;
-  title: string;
+  title: string | null;
   category: string | null;
   condition: string | null;
   price: number | null;
   price_from: number | null;
-  status: string;
+  status: ItemStatus;
 };
 
-function safeParseCart(raw: string | null): string[] {
-  if (!raw) return [];
+type ItemsResponse = { items: PublicItem[]; error?: string };
+type CreateResponse = { ok?: boolean; error?: string; order_id?: string; whatsapp_url?: string; expires_at?: string };
+type RecoResponse = { items: PublicItem[]; error?: string };
+
+function safeJsonParse<T>(raw: string | null): T | null {
+  if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (Array.isArray(parsed)) return parsed.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+    return JSON.parse(raw) as T;
   } catch {
-    // noop
+    return null;
   }
-  return [];
+}
+
+function formatMoneyBR(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "0,00";
+  return value.toFixed(2).replace(".", ",");
 }
 
 function getCartIds(): string[] {
-  return safeParseCart(localStorage.getItem("bazar_cart"));
+  const raw = typeof window !== "undefined" ? window.localStorage.getItem("bazar_cart") : null;
+  const arr = safeJsonParse<unknown>(raw);
+  if (!Array.isArray(arr)) return [];
+  return arr.map(String).map((s) => s.trim()).filter(Boolean);
 }
 
 function setCartIds(ids: string[]) {
-  localStorage.setItem("bazar_cart", JSON.stringify(ids));
-}
-
-async function safeJson<T>(resp: Response): Promise<T> {
-  const ct = resp.headers.get("content-type") || "";
-  const text = await resp.text();
-  if (!resp.ok) {
-    throw new Error(text || `HTTP ${resp.status}`);
-  }
-  if (!ct.includes("application/json")) {
-    // Ex.: middleware redirecionando para HTML
-    throw new Error("Resposta inesperada (não-JSON).");
-  }
-  return JSON.parse(text) as T;
+  window.localStorage.setItem("bazar_cart", JSON.stringify(ids));
+  window.dispatchEvent(new Event("bazar_cart_updated"));
 }
 
 export default function CheckoutClient() {
-  const router = useRouter();
-  const search = useSearchParams();
+  const [cartItems, setCartItems] = useState<PublicItem[]>([]);
+  const [reco, setReco] = useState<PublicItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const buy = search.get("buy")?.trim() || "";
-
-  const [ids, setIds] = useState<string[]>([]);
-  const [items, setItems] = useState<ItemRow[]>([]);
-  const [err, setErr] = useState<string>("");
-
-  // dados do cliente (mantemos simples; backend decide o que é obrigatório)
   const [name, setName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
-  const [optInMarketing, setOptInMarketing] = useState(false);
+  const [optIn, setOptIn] = useState(false);
 
-  const total = useMemo(() => {
-    return items.reduce((acc, it) => acc + (typeof it.price === "number" ? it.price : 0), 0);
-  }, [items]);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<CreateResponse | null>(null);
 
-  // 1) Carrega carrinho do localStorage (e garante `buy` dentro dele)
-  useEffect(() => {
-    const current = getCartIds();
-    const next = buy ? Array.from(new Set([buy, ...current])) : current;
-    if (buy) setCartIds(next);
-    setIds(next);
-  }, [buy]);
+  const availableItems = useMemo(() => cartItems.filter((x) => x.status === "available"), [cartItems]);
 
-  // 2) Busca itens do carrinho
-  useEffect(() => {
-    let cancelled = false;
+  const total = useMemo(
+    () => availableItems.reduce((sum, it) => sum + (it.price ?? 0), 0),
+    [availableItems]
+  );
 
-    async function load() {
-      setErr("");
+  async function loadCart() {
+    setError(null);
+    setLoading(true);
+    try {
+      const ids = getCartIds();
+
       if (!ids.length) {
-        setItems([]);
+        setCartItems([]);
+        setReco([]);
         return;
       }
 
-      const q = encodeURIComponent(ids.join(","));
-      const resp = await fetch(`/api/public/items?short_ids=${q}`, { cache: "no-store" });
-      const data = await safeJson<{ items: ItemRow[] }>(resp);
+      const res = await fetch(`/api/public/items?short_ids=${encodeURIComponent(ids.join(","))}`, { cache: "no-store" });
+      const json = (await res.json()) as ItemsResponse;
+      if (!res.ok || json.error) throw new Error(json.error || "Falha ao carregar itens.");
+      // Keep original cart order
+      const byId = new Map((json.items ?? []).map((it) => [it.short_id, it] as const));
+      const ordered = ids.map((id) => byId.get(id)).filter((v): v is PublicItem => Boolean(v));
+      setCartItems(ordered);
 
-      if (!cancelled) {
-        setItems(Array.isArray(data.items) ? data.items : []);
-      }
+      // Recommendations
+      const recoRes = await fetch(`/api/public/recommendations?exclude=${encodeURIComponent(ids.join(","))}&limit=6`, { cache: "no-store" });
+      const recoJson = (await recoRes.json()) as RecoResponse;
+      if (!recoRes.ok || recoJson.error) throw new Error(recoJson.error || "Falha ao carregar recomendações.");
+      setReco(recoJson.items ?? []);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erro inesperado.");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    load().catch((e: unknown) => {
-      if (cancelled) return;
-      setItems([]);
-      setErr(e instanceof Error ? e.message : String(e));
-    });
+  useEffect(() => {
+    loadCart();
+    const onCart = () => loadCart();
+    window.addEventListener("bazar_cart_updated", onCart);
+    return () => window.removeEventListener("bazar_cart_updated", onCart);
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [ids]);
-
-  const onClear = () => {
+  function clearCart() {
     setCartIds([]);
-    setIds([]);
-    setItems([]);
-    router.push("/carrinho");
-  };
+    loadCart();
+  }
 
-  const onCreate = async () => {
-    setErr("");
-    if (!ids.length) {
-      setErr("Seu carrinho está vazio.");
-      return;
-    }
-    if (!name.trim()) {
-      setErr("Informe seu nome.");
-      return;
-    }
-    if (!whatsapp.trim()) {
-      setErr("Informe seu WhatsApp.");
-      return;
-    }
-
-    const payload = {
-      name: name.trim(),
-      whatsapp: whatsapp.trim(),
-      email: email.trim() || null,
-      instagram: null, // WhatsApp-first
-      optInMarketing,
-      items: ids,
-    };
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    setSuccess(null);
 
     try {
-      const resp = await fetch("/api/checkout/create", {
+      const cart_short_ids = availableItems.map((x) => x.short_id);
+
+      const res = await fetch("/api/checkout/create", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          cart_short_ids,
+          customer: {
+            name: name.trim() || null,
+            whatsapp: whatsapp.trim(),
+            email: email.trim() || null,
+            opt_in_marketing: optIn,
+          },
+        }),
       });
 
-      const data = await safeJson<{ ok: boolean; order_id?: string; wa_link?: string }>(resp);
+      const json = (await res.json()) as CreateResponse;
+      if (!res.ok || json.error) throw new Error(json.error || "Falha ao criar pedido.");
 
-      if (data.wa_link) {
-        window.location.href = data.wa_link;
-        return;
-      }
+      setSuccess(json);
 
-      // fallback
-      router.push("/checkout/sucesso");
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : String(e));
+      // Optional: clear cart after creating order
+      setCartIds([]);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro inesperado.");
+    } finally {
+      setSubmitting(false);
     }
-  };
+  }
 
   return (
-    <div>
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Finalizar pedido</h1>
-          <p className="mt-1 text-slate-600">Confirmação e envio do comprovante pelo WhatsApp.</p>
+    <div className="mt-6 space-y-6">
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      ) : null}
+
+      {success?.ok ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          Pedido criado com sucesso.{" "}
+          {success.whatsapp_url ? (
+            <a className="font-semibold underline" href={success.whatsapp_url} target="_blank" rel="noreferrer">
+              Clique aqui para abrir o WhatsApp
+            </a>
+          ) : null}
         </div>
-        <button
-          type="button"
-          onClick={() => router.push("/carrinho")}
-          className="rounded-2xl border bg-white px-4 py-2 font-semibold hover:bg-slate-50"
-        >
-          Voltar ao carrinho
-        </button>
-      </div>
+      ) : null}
 
-      {err ? <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-rose-700">{err}</div> : null}
-
-      <div className="mt-4 rounded-2xl border bg-white p-4">
+      <div className="rounded-2xl border bg-white p-5">
         <div className="flex items-center justify-between">
-          <div className="font-semibold">Itens</div>
-          <button type="button" onClick={onClear} className="text-sm font-semibold text-slate-600 hover:underline">
-            Limpar carrinho
+          <div className="text-base font-semibold">Itens</div>
+          <button className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50" onClick={loadCart} type="button">
+            Atualizar
           </button>
         </div>
 
-        {items.length ? (
-          <div className="mt-3 space-y-3">
-            {items.map((it) => (
-              <div key={it.id} className="flex items-start justify-between gap-3 rounded-xl border p-3">
+        {loading ? (
+          <div className="mt-3 text-sm text-gray-600">Carregando…</div>
+        ) : availableItems.length === 0 ? (
+          <div className="mt-3 text-sm text-gray-700">Seu carrinho está vazio (ou não há itens disponíveis).</div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {availableItems.map((it) => (
+              <div key={it.short_id} className="flex items-start justify-between gap-3 rounded-xl border p-4">
                 <div>
-                  <div className="font-semibold">
-                    {it.title} <span className="text-slate-500">#{it.short_id}</span>
+                  <div className="text-sm font-semibold">
+                    {it.title ?? "Item do Bazar"}{" "}
+                    <span className="text-xs font-normal text-gray-500">#{it.short_id}</span>
                   </div>
-                  <div className="text-sm text-slate-600">
-                    {(it.category || "—")} • {(it.condition || "—")} • <span className="font-semibold">{it.status}</span>
+                  <div className="mt-1 text-xs text-gray-600">
+                    {it.category ?? "Outros"} • {it.condition ?? "Muito bom"} •{" "}
+                    <span className="font-semibold">R$ {formatMoneyBR(it.price)}</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  {it.price_from ? <div className="text-xs text-slate-500 line-through">{formatBRL(it.price_from)}</div> : null}
-                  <div className="font-extrabold">{formatBRL(it.price || 0)}</div>
-                </div>
+                <div className="text-sm font-semibold">R$ {formatMoneyBR(it.price)}</div>
               </div>
             ))}
 
-            <div className="flex items-center justify-between rounded-xl bg-slate-50 p-3">
-              <div className="font-semibold">Total</div>
-              <div className="text-xl font-extrabold">{formatBRL(total)}</div>
+            <div className="flex items-center justify-between border-t pt-3">
+              <div className="text-sm text-gray-600">Total</div>
+              <div className="text-lg font-semibold">R$ {formatMoneyBR(total)}</div>
             </div>
           </div>
-        ) : (
-          <div className="mt-3 text-slate-600">Seu carrinho está vazio (ou não há itens disponíveis).</div>
         )}
+
+        <div className="mt-4 flex items-center justify-between">
+          <button className="text-sm underline" onClick={clearCart} type="button">
+            Limpar carrinho
+          </button>
+          <Link href="/carrinho" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
+            Voltar ao carrinho
+          </Link>
+        </div>
       </div>
 
-      <div className="mt-4 rounded-2xl border bg-white p-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <form onSubmit={handleSubmit} className="rounded-2xl border bg-white p-5">
+        <div className="text-base font-semibold">Seus dados</div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div>
-            <label className="text-sm font-semibold">Nome</label>
+            <label className="text-sm font-medium">Nome</label>
             <input
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-xl border px-3 py-2"
               placeholder="Seu nome"
             />
           </div>
 
           <div>
-            <label className="text-sm font-semibold">WhatsApp</label>
+            <label className="text-sm font-medium">WhatsApp (obrigatório)</label>
             <input
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
               value={whatsapp}
               onChange={(e) => setWhatsapp(e.target.value)}
-              className="mt-1 w-full rounded-xl border px-3 py-2"
               placeholder="(DD) 9xxxx-xxxx"
+              required
             />
           </div>
 
           <div className="sm:col-span-2">
-            <label className="text-sm font-semibold">E-mail (opcional)</label>
+            <label className="text-sm font-medium">E-mail (opcional)</label>
             <input
+              className="mt-1 w-full rounded-lg border px-3 py-2 text-sm"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-xl border px-3 py-2"
               placeholder="voce@exemplo.com"
+              type="email"
             />
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" checked={optInMarketing} onChange={(e) => setOptInMarketing(e.target.checked)} />
+          <label className="sm:col-span-2 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
             Quero receber novidades e promoções (opcional).
           </label>
         </div>
 
         <button
-          type="button"
-          onClick={onCreate}
-          className="mt-4 w-full rounded-2xl bg-emerald-600 px-4 py-3 text-center font-semibold text-white hover:bg-emerald-700"
+          className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          disabled={submitting || availableItems.length === 0}
+          type="submit"
         >
-          Criar pedido
+          {submitting ? "Criando..." : "Criar pedido"}
         </button>
-      </div>
+      </form>
+
+      {/* Deep Dive: gentle cross-sell on checkout too */}
+      {reco.length ? (
+        <section className="rounded-2xl border bg-white p-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold">Complete sua seleção</h2>
+              <p className="mt-1 text-sm text-gray-700">
+                Se fizer sentido, inclua mais 1 ou 2 itens — você economiza e ainda apoia a ação social do Bazar do Sementinha.
+              </p>
+            </div>
+            <Link href="/" className="text-sm font-medium underline">
+              Ver tudo no catálogo
+            </Link>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {reco.map((it) => (
+              <div key={it.short_id} className="rounded-xl border p-4">
+                <div className="text-sm font-semibold line-clamp-2">{it.title ?? "Item do Bazar"}</div>
+                <div className="mt-1 text-xs text-gray-600">
+                  {it.category ?? "Outros"} • {it.condition ?? "Muito bom"}
+                </div>
+                <div className="mt-2 text-sm font-semibold">R$ {formatMoneyBR(it.price)}</div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <Link
+                    href={`/i/${encodeURIComponent(it.short_id)}`}
+                    className="rounded-lg border px-3 py-2 text-xs hover:bg-gray-50"
+                  >
+                    Ver
+                  </Link>
+                  <AddToCartButton shortId={it.short_id} disabled={it.status !== "available"} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 text-sm text-gray-700">
+            <Link href="/" className="font-medium underline">
+              Continuar comprando
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Informações Importantes */}
+      <section className="rounded-2xl border bg-white p-5">
+        <h2 className="text-base font-semibold">Informações Importantes</h2>
+        <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-gray-800">
+          <li>
+            Pagamento por <b>Pix</b> ou <b>Cartão de Crédito</b> (para cartão: fazer um Pix de <b>R$ 10,00</b> para reserva; o valor é devolvido no pagamento/retirada).
+          </li>
+          <li>
+            Retirada no <b>TUCXA2</b> (Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP) conforme data e horário combinado.
+          </li>
+          <li>
+            <b>Não realizamos trocas.</b>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }
