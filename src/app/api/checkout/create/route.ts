@@ -1,158 +1,185 @@
 import { NextResponse } from "next/server";
+import { nanoid } from "nanoid";
 import { supabaseService } from "@/lib/supabase/service";
 
-// Checkout WhatsApp-first:
-// - WhatsApp é obrigatório (chave do customer)
-// - Instagram é opcional (não exige)
-// - Reserva itens por 24h e cria lembretes (assistido)
+export const runtime = "nodejs";
 
-type CustomerPayload = {
+type ItemStatus = "review" | "available" | "reserved" | "sold";
+
+type ItemRow = {
+  id: string;
+  short_id: string;
+  title: string | null;
+  price: number | null;
+  status: ItemStatus | string | null;
+};
+
+type CustomerInput = {
   name: string;
   whatsapp: string;
-  email?: string | null;
-  instagram?: string | null;
-  opt_in_marketing?: boolean;
+  email: string | null;
+  opt_in_marketing: boolean;
+};
+
+type ParsedBody = {
+  cart_short_ids: string[];
+  customer: CustomerInput;
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
+  return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
 function asString(v: unknown): string | null {
-  return typeof v === "string" ? v : null;
-}
-
-function asStringArray(v: unknown): string[] | null {
-  if (!Array.isArray(v)) return null;
-  const out = v.filter((x) => typeof x === "string") as string[];
-  return out.length === v.length ? out : null;
-}
-
-function normalizeInstagram(raw: string | null): string | null {
-  if (!raw) return null;
-  const s = raw.trim().replace(/^@/, "");
+  if (typeof v !== "string") return null;
+  const s = v.trim();
   return s ? s : null;
 }
 
-function normalizeWhatsapp(raw: string | null): string | null {
-  if (!raw) return null;
-  const digits = raw.replace(/\D/g, "");
-
-  // BR: 10 ou 11 dígitos (DDD + número) => prefixa 55
-  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
-
-  // Já com DDI 55
-  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) return digits;
-
-  return digits.length >= 10 ? digits : null;
+function asBool(v: unknown): boolean {
+  return v === true;
 }
 
-function nowPlusHours(hours: number): string {
-  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+function toStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((x) => (typeof x === "string" ? x.trim() : ""))
+    .filter((x) => x.length > 0);
 }
 
-function buildWhatsAppLink(whatsappE164: string, message: string): string {
-  const msg = encodeURIComponent(message);
-  return `https://wa.me/${whatsappE164}?text=${msg}`;
+function normalizeEmail(v: unknown): string | null {
+  const s = asString(v);
+  if (!s) return null;
+  // validação leve (sem “inventar” e-mail)
+  if (!s.includes("@")) return null;
+  return s.toLowerCase();
+}
+
+function normalizeWhatsapp(v: unknown): string | null {
+  const s = asString(v);
+  if (!s) return null;
+
+  // mantém só dígitos
+  const digits = s.replace(/\D/g, "");
+
+  // Esperado BR: DDD + número (10 ou 11 dígitos) — mas aceitamos 12/13 se vier com 55
+  // Exemplos: 19992360856, 5519992360856
+  if (digits.length < 10) return null;
+
+  // padroniza sem "+" (armazenar como dígitos é simples)
+  return digits;
+}
+
+function nowPlusHours(h: number) {
+  return new Date(Date.now() + h * 60 * 60 * 1000).toISOString();
+}
+
+function parseBody(body: unknown): ParsedBody | null {
+  if (!isRecord(body)) return null;
+
+  const cart_short_ids = toStringArray(body["cart_short_ids"]);
+  const custRaw = body["customer"];
+  if (!isRecord(custRaw)) return null;
+
+  const name = asString(custRaw["name"]) ?? "";
+  const whatsapp = asString(custRaw["whatsapp"]) ?? "";
+  const email = normalizeEmail(custRaw["email"]);
+  const opt_in_marketing = asBool(custRaw["opt_in_marketing"]);
+
+  return {
+    cart_short_ids,
+    customer: { name, whatsapp, email, opt_in_marketing },
+  };
 }
 
 export async function POST(req: Request) {
+  const raw = await req.json().catch(() => null);
+  const body = parseBody(raw);
+
+  if (!body) return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
+
+  const shortIds = body.cart_short_ids;
+  const customer = body.customer;
+
+  if (!shortIds.length) return NextResponse.json({ error: "Carrinho vazio." }, { status: 400 });
+  if (!customer.name.trim()) return NextResponse.json({ error: "Nome é obrigatório." }, { status: 400 });
+
+  const wa = normalizeWhatsapp(customer.whatsapp);
+  if (!wa) return NextResponse.json({ error: "WhatsApp é obrigatório (com DDD)." }, { status: 400 });
+
+  const pixKey = process.env.PIX_KEY || "";
+  if (!pixKey) return NextResponse.json({ error: "PIX_KEY não configurado no servidor." }, { status: 500 });
+
+  const pickup = process.env.PICKUP_LOCATION || "TUCXA2";
+
   const s = supabaseService();
 
-  let bodyUnknown: unknown;
-  try {
-    bodyUnknown = (await req.json()) as unknown;
-  } catch {
-    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
-  }
-
-  if (!isRecord(bodyUnknown)) {
-    return NextResponse.json({ error: "Payload inválido." }, { status: 400 });
-  }
-
-  const cart_short_ids = asStringArray(bodyUnknown.cart_short_ids);
-  const custRaw = isRecord(bodyUnknown.customer) ? (bodyUnknown.customer as Partial<CustomerPayload>) : null;
-
-  if (!cart_short_ids || !cart_short_ids.length) {
-    return NextResponse.json({ error: "Carrinho vazio." }, { status: 400 });
-  }
-  if (!custRaw) {
-    return NextResponse.json({ error: "Cliente obrigatório." }, { status: 400 });
-  }
-
-  const name = (asString(custRaw.name) ?? "").trim();
-  const whatsapp = normalizeWhatsapp(asString(custRaw.whatsapp));
-  const email = (asString(custRaw.email) ?? "").trim() || null;
-  const instagram = normalizeInstagram(asString(custRaw.instagram));
-  const optIn = !!custRaw.opt_in_marketing;
-
-  if (!name) return NextResponse.json({ error: "Informe seu nome." }, { status: 400 });
-  if (!whatsapp) return NextResponse.json({ error: "Informe seu WhatsApp (com DDD)." }, { status: 400 });
-
-  // 0) valida itens e calcula total (somente AVAILABLE)
-  const { data: found, error: fErr } = await s
+  // 1) Carrega itens e valida disponibilidade
+  const { data: items, error: itErr } = await s
     .from("items")
     .select("id,short_id,title,price,status")
-    .in("short_id", cart_short_ids)
-    .in("status", ["available"]);
+    .in("short_id", shortIds);
 
-  if (fErr) return NextResponse.json({ error: fErr.message }, { status: 500 });
-  if (!found || !found.length) {
-    return NextResponse.json({ error: "Nenhum item disponível encontrado no carrinho." }, { status: 400 });
+  if (itErr) return NextResponse.json({ error: itErr.message }, { status: 500 });
+
+  const found = (items ?? []) as ItemRow[];
+
+  const missing = shortIds.filter((sid) => !found.some((x) => x.short_id === sid));
+  if (missing.length) return NextResponse.json({ error: `Itens não encontrados: ${missing.join(", ")}` }, { status: 400 });
+
+  const notAvail = found.filter((x) => x.status !== "available");
+  if (notAvail.length) {
+    return NextResponse.json(
+      { error: `Alguns itens não estão disponíveis: ${notAvail.map((x) => `#${x.short_id} (${x.status})`).join(", ")}` },
+      { status: 400 }
+    );
   }
 
-  const total = found.reduce((acc, it) => acc + Number(it.price ?? 0), 0);
+  const total = found.reduce((sum, x) => sum + Number(x.price ?? 0), 0);
+  const code = `ORD-${nanoid(6).toUpperCase()}`;
 
-  // 1) upsert customer por WHATSAPP (chave)
-  let customerId: string | null = null;
-
-  const { data: existingCust, error: cFindErr } = await s
+  // 2) upsert customer por WhatsApp
+  const { data: existingCust, error: exErr } = await s
     .from("customers")
-    .select("id")
-    .eq("whatsapp", whatsapp)
+    .select("id,email,whatsapp,opt_in_marketing")
+    .eq("whatsapp", wa)
     .maybeSingle();
 
-  if (cFindErr && cFindErr.code !== "PGRST116") {
-    return NextResponse.json({ error: cFindErr.message }, { status: 500 });
-  }
+  if (exErr) return NextResponse.json({ error: exErr.message }, { status: 500 });
 
-  if (existingCust?.id) {
-    customerId = existingCust.id;
+  let customerId: string | null = (existingCust as { id?: string } | null)?.id ?? null;
 
-    const { error: cUpErr } = await s
-      .from("customers")
-      .update({
-        name,
-        email,
-        instagram, // opcional
-        opt_in_marketing: optIn,
-      })
-      .eq("id", customerId);
-
-    if (cUpErr) return NextResponse.json({ error: cUpErr.message }, { status: 500 });
-  } else {
-    const { data: createdCust, error: cInsErr } = await s
+  if (!customerId) {
+    const { data: createdCust, error: cErr } = await s
       .from("customers")
       .insert({
-        name,
-        email,
-        whatsapp,
-        instagram, // opcional
-        opt_in_marketing: optIn,
+        name: customer.name.trim(),
+        email: customer.email,
+        whatsapp: wa,
+        opt_in_marketing: !!customer.opt_in_marketing,
+        // instagram fica totalmente opcional no banco; não setamos aqui
       })
       .select("id")
       .single();
 
-    if (cInsErr || !createdCust) {
-      return NextResponse.json({ error: cInsErr?.message || "Falha ao criar cliente." }, { status: 500 });
+    if (cErr || !createdCust) {
+      return NextResponse.json({ error: cErr?.message || "Falha ao criar cliente." }, { status: 500 });
     }
-    customerId = createdCust.id;
+
+    customerId = (createdCust as { id: string }).id;
+  } else {
+    // Atualiza apenas o que veio (não apaga dados antigos com null)
+    const patch: Record<string, unknown> = {
+      name: customer.name.trim(),
+      opt_in_marketing: !!customer.opt_in_marketing,
+    };
+    if (customer.email) patch.email = customer.email;
+
+    const { error: uErr } = await s.from("customers").update(patch).eq("id", customerId);
+    if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
   }
 
-  // 2) cria order (reserved 24h)
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-  const pixKey = process.env.NEXT_PUBLIC_PIX_KEY || "";
-  const pickup = process.env.NEXT_PUBLIC_PICKUP_LOCATION || "TUCXA2";
+  // 3) create order (reserved 24h)
   const expires_at = nowPlusHours(24);
 
   const { data: order, error: oErr } = await s
@@ -160,10 +187,9 @@ export async function POST(req: Request) {
     .insert({
       code,
       customer_id: customerId,
-      customer_name: name,
-      customer_email: email,
-      customer_whatsapp: whatsapp,
-      customer_instagram: instagram, // opcional
+      customer_name: customer.name.trim(),
+      customer_email: customer.email,
+      customer_whatsapp: wa,
       status: "reserved",
       total,
       pix_key: pixKey,
@@ -173,13 +199,11 @@ export async function POST(req: Request) {
     .select("id,code,expires_at,total")
     .single();
 
-  if (oErr || !order) {
-    return NextResponse.json({ error: oErr?.message || "Falha ao criar pedido." }, { status: 500 });
-  }
+  if (oErr || !order) return NextResponse.json({ error: oErr?.message || "Falha ao criar pedido." }, { status: 500 });
 
-  // 3) snapshot order_items
+  // 4) insert order_items snapshot
   const rows = found.map((x) => ({
-    order_id: order.id,
+    order_id: (order as { id: string }).id,
     item_id: x.id,
     item_short_id: x.short_id,
     item_title: x.title,
@@ -189,32 +213,24 @@ export async function POST(req: Request) {
   const { error: oiErr } = await s.from("order_items").insert(rows);
   if (oiErr) return NextResponse.json({ error: oiErr.message }, { status: 500 });
 
-  // 4) reserva itens
-  const { error: upErr } = await s.from("items").update({ status: "reserved" }).in("id", found.map((x) => x.id));
+  // 5) reserve items
+  const { error: upErr } = await s.from("items").update({ status: "reserved" }).in(
+    "id",
+    found.map((x) => x.id)
+  );
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
 
-  // 5) cria lembretes (assistido)
+  // 6) reminders (8h e 16h)
   const { error: rErr } = await s.from("order_reminders").insert([
-    { order_id: order.id, kind: "remind_8h", due_at: nowPlusHours(8) },
-    { order_id: order.id, kind: "remind_16h", due_at: nowPlusHours(16) },
+    { order_id: (order as { id: string }).id, kind: "remind_8h", due_at: nowPlusHours(8) },
+    { order_id: (order as { id: string }).id, kind: "remind_16h", due_at: nowPlusHours(16) },
   ]);
   if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
 
-  // 6) retorno WhatsApp-first
-  const message =
-    `Olá! Fiz um pedido no Bazar do Sementinha.\n` +
-    `Código: ${order.code}\n` +
-    `Total: R$ ${Number(order.total).toFixed(2).replace(".", ",")}\n` +
-    `Por favor, me envie as instruções de pagamento/retirada.`;
-
-  const whatsapp_url = buildWhatsAppLink(whatsapp, message);
-
   return NextResponse.json({
-    order_id: order.id,
-    code: order.code,
-    expires_at: order.expires_at,
-    total: order.total,
-    whatsapp,
-    whatsapp_url,
+    order_id: (order as { id: string }).id,
+    code: (order as { code: string }).code,
+    expires_at: (order as { expires_at: string }).expires_at,
+    total: (order as { total: number }).total,
   });
 }
