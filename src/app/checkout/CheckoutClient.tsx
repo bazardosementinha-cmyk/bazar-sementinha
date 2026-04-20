@@ -52,6 +52,9 @@ function readCart(): string[] {
 
 function writeCart(ids: string[]) {
   localStorage.setItem(CART_LS_KEY, JSON.stringify(Array.from(new Set(ids))));
+  // Notifica componentes (CartButton/Cart/Checkout)
+  window.dispatchEvent(new Event("bazar_cart_updated"));
+  window.dispatchEvent(new Event("storage"));
 }
 
 function formatBRL(value: number) {
@@ -59,7 +62,11 @@ function formatBRL(value: number) {
 }
 
 function waReceiptLink(orderCode: string, total: number) {
-  const text = `Olá! Segue comprovante do Pix do pedido ${orderCode}. Total: R$ ${formatBRL(total).replace("R$ ", "")}.`;
+  const totalBr = formatBRL(total).replace("R$ ", "");
+  const text =
+    `Olá! Vou enviar agora o *print/comprovante do Pix* do pedido ${orderCode}. ` +
+    `Valor: R$ ${totalBr}. ` +
+    `Chave Pix: ${PIX_KEY} — ${PIX_FAVORED}.`;
   return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(text)}`;
 }
 
@@ -99,7 +106,7 @@ export default function CheckoutClient() {
     setError(null);
     try {
       const qs = encodeURIComponent(ids.join(","));
-      const res = await fetch(`/api/public/items?ids=${qs}`, { cache: "no-store" });
+      const res = await fetch(`/api/public/items?short_ids=${qs}`, { cache: "no-store" });
       const data = (await res.json()) as { items?: PublicItem[]; error?: string };
       if (!res.ok) throw new Error(data?.error || "Falha ao carregar itens.");
       const loaded = Array.isArray(data.items) ? data.items : [];
@@ -215,7 +222,7 @@ export default function CheckoutClient() {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <a
-              href={created.whatsapp_url}
+              href={waReceiptLink(created.order.code, created.order.total)}
               target="_blank"
               rel="noreferrer"
               className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"

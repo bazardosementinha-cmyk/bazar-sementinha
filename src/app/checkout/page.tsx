@@ -1,19 +1,15 @@
+import { Suspense } from "react";
 import { Shell, TopBar } from "@/components/Shell";
 import CheckoutClient from "./CheckoutClient";
-import { Suspense } from "react";
+
+export const dynamic = "force-dynamic";
 
 export default function CheckoutPage() {
   return (
     <>
       <TopBar />
       <Shell>
-        <Suspense
-          fallback={
-            <div className="p-4 text-sm opacity-70">
-              Carregando checkout...
-            </div>
-          }
-        >
+        <Suspense fallback={<div className="p-6">Carregando…</div>}>
           <CheckoutClient />
         </Suspense>
       </Shell>
