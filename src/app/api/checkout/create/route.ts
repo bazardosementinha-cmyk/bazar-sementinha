@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 type PaymentPlan = "pix_now" | "card_pickup_deposit" | "pay_pickup_24h";
 
@@ -30,7 +30,7 @@ type Body = {
 const PIX_KEY = "58.392.598/0001-91";
 const PIX_FAVORED = "Templo de Umbanda Caboclo Sete Flexa";
 const SUPPORT_WA = "5519992360856";
-const PICKUP_LOCATION = "TUCXA2 (Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP)";
+const PICKUP_LOCATION = "TUCXA2";
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -55,13 +55,9 @@ function onlyDigits(value: string): string {
 }
 
 function normalizeWhatsApp(raw: string): string {
-  // Accepts formats like:
-  // - "19 99236-0856" -> "5519992360856"
-  // - "+55 19 99236-0856" -> "5519992360856"
-  // - "5519992360856" -> "5519992360856"
   const digits = onlyDigits(raw);
+  if (!digits) return "";
   if (digits.startsWith("55")) return digits;
-  // If user typed only DDD+number (10/11 digits), prefix Brazil
   return `55${digits}`;
 }
 
@@ -74,7 +70,7 @@ function formatBRL(value: number): string {
 
 function makeCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let out = "";
+  let out = "ORD-";
   for (let i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
   return out;
 }
@@ -117,9 +113,23 @@ function whatsappUrlForOrder(code: string, total: number) {
   return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(text)}`;
 }
 
+function buildReminderRows(orderId: string, expiresAt: Date, plan: PaymentPlan) {
+  if (plan === "card_pickup_deposit") return [];
+
+  const remind8 = new Date(expiresAt.getTime() - 8 * 60 * 60 * 1000);
+  const remind16 = new Date(expiresAt.getTime() - 16 * 60 * 60 * 1000);
+
+  return [
+    { order_id: orderId, kind: "remind_8h", due_at: remind8.toISOString() },
+    { order_id: orderId, kind: "remind_16h", due_at: remind16.toISOString() },
+  ];
+}
+
+export const runtime = "nodejs";
+
 export async function POST(req: Request) {
   try {
-    const supabase = await supabaseServer();
+    const supabase = supabaseService();
 
     const raw = (await req.json().catch(() => null)) as Body | null;
     if (!raw || typeof raw !== "object") {
@@ -127,10 +137,11 @@ export async function POST(req: Request) {
     }
 
     const cartShortIds = Array.from(
-      new Set([
-        ...asStringArray(raw.cart_short_ids),
-        ...asStringArray(raw.cart_ids),
-      ].map((x) => x.trim()).filter(Boolean))
+      new Set(
+        [...asStringArray(raw.cart_short_ids), ...asStringArray(raw.cart_ids)]
+          .map((x) => x.trim())
+          .filter(Boolean)
+      )
     );
 
     if (cartShortIds.length === 0) {
@@ -148,7 +159,6 @@ export async function POST(req: Request) {
     if (!whatsappRaw) return NextResponse.json({ error: "WhatsApp é obrigatório." }, { status: 400 });
 
     const whatsapp = normalizeWhatsApp(whatsappRaw);
-    // Basic sanity: Brazil + DDD + number (at least 12 digits with 55)
     if (whatsapp.length < 12) {
       return NextResponse.json({ error: "WhatsApp inválido." }, { status: 400 });
     }
@@ -156,7 +166,6 @@ export async function POST(req: Request) {
     const plan = pickPaymentPlan(raw.payment_plan);
     const { expiresAt, pickupDeadlineAt, depositAmount, depositRequired } = computeDeadlines(plan);
 
-    // 1) Load items
     const { data: items, error: itemsErr } = await supabase
       .from("items")
       .select("id, short_id, title, price, status")
@@ -178,7 +187,6 @@ export async function POST(req: Request) {
 
     const total = available.reduce((acc, it) => acc + (Number(it.price) || 0), 0);
 
-    // 2) Upsert customer by WhatsApp
     const { data: existingCustomer, error: custFindErr } = await supabase
       .from("customers")
       .select("id")
@@ -192,15 +200,18 @@ export async function POST(req: Request) {
     let customerId: string;
     if (existingCustomer?.id) {
       customerId = existingCustomer.id as string;
+
       const { error: custUpdErr } = await supabase
         .from("customers")
         .update({
           name,
           email,
+          whatsapp,
           instagram,
           opt_in_marketing: optInMarketing,
         })
         .eq("id", customerId);
+
       if (custUpdErr) {
         return NextResponse.json({ error: getErrorMessage(custUpdErr) }, { status: 500 });
       }
@@ -216,13 +227,14 @@ export async function POST(req: Request) {
         })
         .select("id")
         .single();
+
       if (custInsErr || !createdCustomer?.id) {
         return NextResponse.json({ error: getErrorMessage(custInsErr) }, { status: 500 });
       }
+
       customerId = createdCustomer.id as string;
     }
 
-    // 3) Create order
     const code = makeCode();
 
     const { data: order, error: orderErr } = await supabase
@@ -230,26 +242,30 @@ export async function POST(req: Request) {
       .insert({
         code,
         customer_id: customerId,
-        total,
+        customer_name: name,
+        customer_email: email,
+        customer_whatsapp: whatsapp,
+        customer_instagram: instagram,
         status: "reserved",
+        total,
+        pix_key: PIX_KEY,
+        pickup_location: PICKUP_LOCATION,
         expires_at: expiresAt.toISOString(),
         payment_plan: plan,
+        pickup_deadline_at: pickupDeadlineAt ? pickupDeadlineAt.toISOString() : null,
         deposit_amount: depositAmount,
-        support_whatsapp: SUPPORT_WA,
-        pix_key: PIX_KEY,
-        pix_favored: PIX_FAVORED,
-        pix_total_target: total,
-        pickup_location: PICKUP_LOCATION,
+        deposit_required: depositRequired,
+        deposit_paid: false,
       })
-      // Important: select ONLY columns that exist (avoid schema-cache errors)
-      .select("id, code, status, total, payment_plan, deposit_amount, expires_at")
+      .select(
+        "id, code, status, total, payment_plan, deposit_amount, deposit_required, expires_at, pickup_deadline_at"
+      )
       .single();
 
     if (orderErr || !order?.id) {
       return NextResponse.json({ error: getErrorMessage(orderErr) }, { status: 500 });
     }
 
-    // 4) Create order_items
     const orderItemsPayload = available.map((it) => ({
       order_id: order.id,
       item_id: it.id,
@@ -260,10 +276,19 @@ export async function POST(req: Request) {
 
     const { error: oiErr } = await supabase.from("order_items").insert(orderItemsPayload);
     if (oiErr) {
+      await supabase.from("orders").delete().eq("id", order.id);
       return NextResponse.json({ error: getErrorMessage(oiErr) }, { status: 500 });
     }
 
-    // 5) Mark items as reserved
+    const reminderRows = buildReminderRows(order.id as string, expiresAt, plan);
+    if (reminderRows.length > 0) {
+      const { error: remindersErr } = await supabase.from("order_reminders").insert(reminderRows);
+      if (remindersErr) {
+        await supabase.from("orders").delete().eq("id", order.id);
+        return NextResponse.json({ error: getErrorMessage(remindersErr) }, { status: 500 });
+      }
+    }
+
     const { data: updatedItems, error: updErr } = await supabase
       .from("items")
       .update({ status: "reserved" })
@@ -275,13 +300,21 @@ export async function POST(req: Request) {
       .select("id");
 
     if (updErr) {
+      await supabase
+        .from("orders")
+        .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+        .eq("id", order.id);
+
       return NextResponse.json({ error: getErrorMessage(updErr) }, { status: 500 });
     }
 
     const updatedCount = Array.isArray(updatedItems) ? updatedItems.length : 0;
     if (updatedCount !== available.length) {
-      // Best effort cleanup: cancel order (keep audit trail)
-      await supabase.from("orders").update({ status: "canceled" }).eq("id", order.id);
+      await supabase
+        .from("orders")
+        .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+        .eq("id", order.id);
+
       return NextResponse.json(
         { error: "Um ou mais itens ficaram indisponíveis durante o fechamento. Tente novamente." },
         { status: 409 }
@@ -296,10 +329,12 @@ export async function POST(req: Request) {
         status: order.status as string,
         total: Number(order.total) || total,
         payment_plan: plan,
-        deposit_required: depositRequired,
-        deposit_amount: depositAmount,
+        deposit_required: Boolean(order.deposit_required ?? depositRequired),
+        deposit_amount: (order.deposit_amount as number | null) ?? depositAmount,
         expires_at: (order.expires_at as string | null) ?? null,
-        pickup_deadline_at: pickupDeadlineAt ? pickupDeadlineAt.toISOString() : null,
+        pickup_deadline_at:
+          (order.pickup_deadline_at as string | null) ??
+          (pickupDeadlineAt ? pickupDeadlineAt.toISOString() : null),
       },
       pix: { key: PIX_KEY, favored: PIX_FAVORED },
       whatsapp_url: whatsappUrlForOrder(order.code as string, total),
