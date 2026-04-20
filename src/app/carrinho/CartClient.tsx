@@ -19,227 +19,224 @@ type PublicItem = {
   created_at: string;
 };
 
-type ItemsResponse = { items: PublicItem[]; error?: string };
-type RecoResponse = { items: PublicItem[]; error?: string };
+const CART_LS_KEY = "bazar_cart";
 
-function formatMoneyBR(value: number | null | undefined): string {
-  if (value === null || value === undefined) return "0,00";
-  return value.toFixed(2).replace(".", ",");
-}
-
-function safeJsonParse<T>(raw: string | null): T | null {
-  if (!raw) return null;
+function readCart(): string[] {
   try {
-    return JSON.parse(raw) as T;
+    const raw = localStorage.getItem(CART_LS_KEY);
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(arr) ? (arr.filter((x) => typeof x === "string") as string[]) : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-function getCartIds(): string[] {
-  const raw = typeof window !== "undefined" ? window.localStorage.getItem("bazar_cart") : null;
-  const arr = safeJsonParse<unknown>(raw);
-  if (!Array.isArray(arr)) return [];
-  return arr.map(String).map((s) => s.trim()).filter(Boolean);
+function writeCart(ids: string[]) {
+  localStorage.setItem(CART_LS_KEY, JSON.stringify(Array.from(new Set(ids))));
 }
 
-function setCartIds(ids: string[]) {
-  window.localStorage.setItem("bazar_cart", JSON.stringify(ids));
-  window.dispatchEvent(new Event("bazar_cart_updated"));
+function formatBRL(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 export default function CartClient() {
-  const [cartIds, setCartIdsState] = useState<string[]>([]);
+  const [cartIds, setCartIds] = useState<string[]>([]);
   const [items, setItems] = useState<PublicItem[]>([]);
-  const [reco, setReco] = useState<PublicItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const total = useMemo(() => {
-    return items
-      .filter((i) => i.status === "available")
-      .reduce((sum, i) => sum + (i.price ?? 0), 0);
-  }, [items]);
+  useEffect(() => {
+    setCartIds(readCart());
+  }, []);
 
-  const unavailableCount = useMemo(() => items.filter((i) => i.status !== "available").length, [items]);
+  const total = useMemo(() => items.reduce((acc, it) => acc + (Number(it.price) || 0), 0), [items]);
 
-  async function refreshAll(nextCartIds?: string[]) {
+  async function refresh() {
+    const ids = readCart();
+    setCartIds(ids);
     setError(null);
+
+    if (ids.length === 0) {
+      setItems([]);
+      return;
+    }
+
     setLoading(true);
-    const ids = nextCartIds ?? getCartIds();
-    setCartIdsState(ids);
-
     try {
-      // 1) Cart items
-      if (!ids.length) {
-        setItems([]);
-      } else {
-        const res = await fetch(`/api/public/items?short_ids=${encodeURIComponent(ids.join(","))}`, { cache: "no-store" });
-        const json = (await res.json()) as ItemsResponse;
-        if (!res.ok || json.error) throw new Error(json.error || "Falha ao carregar itens do carrinho.");
-        // Keep original cart order
-        const byId = new Map((json.items ?? []).map((it) => [it.short_id, it] as const));
-        setItems(ids.map((id) => byId.get(id)).filter((v): v is PublicItem => Boolean(v)));
-      }
-
-      // 2) Recommendations (exclude cart ids)
-      const recoRes = await fetch(
-        `/api/public/recommendations?exclude=${encodeURIComponent(ids.join(","))}&limit=6`,
-        { cache: "no-store" }
-      );
-      const recoJson = (await recoRes.json()) as RecoResponse;
-      if (!recoRes.ok || recoJson.error) throw new Error(recoJson.error || "Falha ao carregar recomendações.");
-      setReco(recoJson.items ?? []);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Erro inesperado.");
+      const qs = encodeURIComponent(ids.join(","));
+      const res = await fetch(`/api/public/items?ids=${qs}`, { cache: "no-store" });
+      const data = (await res.json()) as { items?: PublicItem[]; error?: string };
+      if (!res.ok) throw new Error(data?.error || "Falha ao carregar itens.");
+      setItems(Array.isArray(data.items) ? data.items : []);
+    } catch (e) {
+      setItems([]);
+      setError(e instanceof Error ? e.message : "Erro ao carregar itens.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    refreshAll();
-
-    const onCartUpdated = () => refreshAll();
-    window.addEventListener("bazar_cart_updated", onCartUpdated);
-
-    return () => window.removeEventListener("bazar_cart_updated", onCartUpdated);
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function removeFromCart(shortId: string) {
-    const next = cartIds.filter((id) => id !== shortId);
+  function removeOne(shortId: string) {
+    const next = cartIds.filter((x) => x !== shortId);
+    writeCart(next);
     setCartIds(next);
-    refreshAll(next);
+    setItems((prev) => prev.filter((it) => it.short_id !== shortId));
   }
 
   function clearCart() {
+    writeCart([]);
     setCartIds([]);
-    refreshAll([]);
+    setItems([]);
   }
 
   return (
-    <div className="mt-6">
-      {error ? <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
-
-      {loading ? (
-        <div className="text-sm text-gray-600">Carregando…</div>
-      ) : items.length === 0 ? (
-        <div className="mt-4 rounded-xl border bg-white p-5 text-sm text-gray-700">
-          Seu carrinho está vazio.{" "}
-          <Link href="/" className="underline">
-            Voltar ao catálogo
-          </Link>
-          .
-        </div>
-      ) : (
-        <>
-          {unavailableCount > 0 ? (
-            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-              Atenção: {unavailableCount} item(ns) do seu carrinho não está(ão) mais disponível(is). Remova e escolha outro(s) item(ns) do catálogo.
-            </div>
-          ) : null}
-
-          <div className="space-y-4">
-            {items.map((it) => (
-              <div key={it.short_id} className="rounded-2xl border bg-white p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div className="text-base font-semibold">{it.title ?? "Item do Bazar"}</div>
-                    <div className="mt-1 text-sm text-gray-600">
-                      {it.category ?? "Outros"} • {it.condition ?? "Muito bom"}{it.size ? ` • Tam.: ${it.size}` : ""} •{" "}
-                      <span className="font-semibold">R$ {formatMoneyBR(it.price)}</span>
-                      <span className="ml-2 text-xs text-gray-500">ID: #{it.short_id}</span>
-                    </div>
-                    {it.status !== "available" ? (
-                      <div className="mt-2 inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                        Status atual: {it.status}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href={`/i/${encodeURIComponent(it.short_id)}`}
-                      className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
-                    >
-                      Ver
-                    </Link>
-                    <button
-                      className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
-                      onClick={() => removeFromCart(it.short_id)}
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 rounded-2xl border bg-white p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-lg font-semibold">Total: R$ {formatMoneyBR(total)}</div>
-              <div className="flex flex-wrap gap-2">
-                <Link href="/" className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50">
-                  Continuar comprando
-                </Link>
-                <button className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-50" onClick={clearCart}>
-                  Limpar
-                </button>
-                <Link href="/checkout" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
-                  Finalizar pedido
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Deep Dive: gentle cross-sell */}
-          {reco.length ? (
-            <section className="mt-8 rounded-2xl border bg-white p-5">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-base font-semibold">Complete sua seleção</h2>
-                  <p className="mt-1 text-sm text-gray-700">
-                    Se fizer sentido, inclua mais 1 ou 2 itens — você economiza e ainda apoia a ação social do Bazar do Sementinha.
-                  </p>
-                </div>
-                <Link href="/" className="text-sm font-medium underline">
-                  Ver tudo no catálogo
-                </Link>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {reco.map((it) => (
-                  <div key={it.short_id} className="rounded-xl border p-4">
-                    <div className="text-sm font-semibold line-clamp-2">{it.title ?? "Item do Bazar"}</div>
-                    <div className="mt-1 text-xs text-gray-600">
-                      {it.category ?? "Outros"} • {it.condition ?? "Muito bom"}
-                    </div>
-                    <div className="mt-2 text-sm font-semibold">R$ {formatMoneyBR(it.price)}</div>
-
-                    <div className="mt-3 flex items-center gap-2">
-                      <Link
-                        href={`/i/${encodeURIComponent(it.short_id)}`}
-                        className="rounded-lg border px-3 py-2 text-xs hover:bg-gray-50"
-                      >
-                        Ver
-                      </Link>
-                      <AddToCartButton shortId={it.short_id} status={it.status} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-gray-700">Pronto para finalizar?</span>
-                <Link href="/checkout" className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
-                  Ir para o checkout
-                </Link>
-              </div>
-            </section>
-          ) : null}
-        </>
+    <div className="space-y-6">
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       )}
+
+      {loading && <div className="text-sm text-neutral-600">Carregando…</div>}
+
+      <div className="space-y-4">
+        {items.length === 0 ? (
+          <div className="rounded-xl border bg-white p-5">
+            <div className="font-semibold">Itens</div>
+            <div className="mt-2 text-sm text-neutral-600">Seu carrinho está vazio (ou não há itens disponíveis).</div>
+          </div>
+        ) : (
+          items.map((it) => (
+            <div key={it.short_id} className="rounded-xl border bg-white p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold">{it.title || "Item"}</div>
+                  <div className="mt-1 text-sm text-neutral-600">
+                    {(it.category || "").trim()}{it.category ? " • " : ""}{(it.condition || "").trim()}
+                    {it.size ? ` • Tam.: ${it.size}` : ""}
+                    {typeof it.price === "number" ? ` • ${formatBRL(it.price)}` : ""}
+                    {it.short_id ? ` • ID: #${it.short_id}` : ""}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Link
+                    href={`/i/${it.short_id}`}
+                    className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
+                  >
+                    Ver
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => removeOne(it.short_id)}
+                    className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
+                  >
+                    Remover
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="rounded-xl border bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-lg font-semibold">Total: {formatBRL(total)}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={clearCart}
+              className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
+            >
+              Limpar
+            </button>
+            <Link href="/checkout" className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700">
+              Finalizar pedido
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Complete sua seleção (cross-sell) */}
+      <div className="rounded-xl border bg-white p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="font-semibold">Complete sua seleção</div>
+            <div className="mt-1 text-sm text-neutral-600">
+              Se fizer sentido, inclua mais 1 ou 2 itens — você economiza e ainda apoia a ação social do Bazar do Sementinha.
+            </div>
+          </div>
+          <Link href="/" className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50">
+            Ver tudo no catálogo
+          </Link>
+        </div>
+
+        <SuggestedItems currentCart={cartIds} />
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm text-neutral-600">Pronto para finalizar?</div>
+          <Link href="/checkout" className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700">
+            Ir para o checkout
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SuggestedItems({ currentCart }: { currentCart: string[] }) {
+  const [list, setList] = useState<PublicItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+    async function run() {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/public/recommendations", { cache: "no-store" });
+        const data = (await res.json()) as { items?: PublicItem[] };
+        if (!ignore) setList(Array.isArray(data.items) ? data.items : []);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+    void run();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const filtered = useMemo(() => list.filter((it) => it.status === "available" && !currentCart.includes(it.short_id)).slice(0, 4), [list, currentCart]);
+
+  if (loading) return <div className="mt-4 text-sm text-neutral-600">Carregando sugestões…</div>;
+  if (filtered.length === 0) return null;
+
+  return (
+    <div className="mt-4 grid gap-3 md:grid-cols-2">
+      {filtered.map((it) => (
+        <div key={it.short_id} className="rounded-xl border p-4">
+          <div className="font-semibold">{it.title || "Item"}</div>
+          <div className="mt-1 text-sm text-neutral-600">
+            {(it.category || "").trim()}{it.category ? " • " : ""}{(it.condition || "").trim()}
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="font-semibold">{typeof it.price === "number" ? formatBRL(it.price) : ""}</div>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/i/${it.short_id}`}
+                className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
+              >
+                Ver
+              </Link>
+              <AddToCartButton shortId={it.short_id} disabled={it.status !== "available"} />
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
