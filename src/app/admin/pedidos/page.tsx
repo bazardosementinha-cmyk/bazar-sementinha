@@ -62,14 +62,17 @@ function normalizeOrders(data: unknown): OrderRow[] {
   return Array.isArray(arr) ? (arr as OrderRow[]) : [];
 }
 
-function orderKey(o: OrderRow): string {
-  return String(o.code || o.short_id || o.order_id || o.id || "");
+function orderRowKey(o: OrderRow): string {
+  return String(o.id || o.order_id || o.code || o.short_id || "");
+}
+
+function orderRouteParam(o: OrderRow): string {
+  return String(o.id || o.order_id || o.code || "");
 }
 
 function displayCode(o: OrderRow): string {
-  const k = orderKey(o);
-  if (!k) return "-";
-  return k.length > 8 ? k.slice(0, 6).toUpperCase() : k.toUpperCase();
+  const code = String(o.code || o.short_id || o.order_id || o.id || "");
+  return code || "-";
 }
 
 function displayCustomer(o: OrderRow): string {
@@ -139,7 +142,7 @@ export default function AdminPedidosPage() {
 
   useEffect(() => {
     void load();
-  }, []); // (de propósito: carregar 1x ao abrir)
+  }, []);
 
   const filtered = useMemo(() => {
     if (filter === "all") return orders;
@@ -181,10 +184,9 @@ export default function AdminPedidosPage() {
 
       {error ? <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
 
-      {/* Mobile: cards */}
       <div className="mt-4 grid gap-3 md:hidden">
         {filtered.map((o) => (
-          <div key={orderKey(o)} className="rounded-2xl border bg-white p-4">
+          <div key={orderRowKey(o)} className="rounded-2xl border bg-white p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs text-slate-500">Código</div>
@@ -220,7 +222,7 @@ export default function AdminPedidosPage() {
             <div className="mt-3">
               <Link
                 className="inline-flex rounded-lg border px-3 py-1 text-sm font-semibold hover:bg-slate-50"
-                href={`/admin/pedidos/${orderKey(o)}`}
+                href={`/admin/pedidos/${orderRouteParam(o)}`}
               >
                 Ver
               </Link>
@@ -235,7 +237,6 @@ export default function AdminPedidosPage() {
         ) : null}
       </div>
 
-      {/* Desktop: tabela */}
       <div className="mt-4 hidden overflow-x-auto rounded-2xl border bg-white md:block">
         <table className="min-w-[980px] w-full text-sm">
           <thead className="bg-slate-50 text-left">
@@ -251,7 +252,7 @@ export default function AdminPedidosPage() {
           </thead>
           <tbody>
             {filtered.map((o) => (
-              <tr key={orderKey(o)} className="border-t">
+              <tr key={orderRowKey(o)} className="border-t">
                 <td className="px-3 py-2 font-mono">{displayCode(o)}</td>
                 <td className="px-3 py-2">{displayCustomer(o)}</td>
                 <td className="px-3 py-2">{o.items_count ?? "-"}</td>
@@ -259,7 +260,7 @@ export default function AdminPedidosPage() {
                 <td className="px-3 py-2">{displayStatus(o)}</td>
                 <td className="px-3 py-2">{displayExpires(o)}</td>
                 <td className="px-3 py-2">
-                  <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/pedidos/${orderKey(o)}`}>
+                  <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/pedidos/${orderRouteParam(o)}`}>
                     Ver
                   </Link>
                 </td>
