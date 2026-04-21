@@ -57,7 +57,6 @@ function makeTrackingToken(code: string, whatsapp: string) {
 function safeTokenEquals(a: string, b: string) {
   const aBuf = Buffer.from(a);
   const bBuf = Buffer.from(b);
-
   if (aBuf.length !== bBuf.length) return false;
   return timingSafeEqual(aBuf, bBuf);
 }
@@ -87,13 +86,8 @@ export async function POST(req: Request) {
     .eq("code", code)
     .maybeSingle();
 
-  if (orderErr) {
-    return NextResponse.json({ error: orderErr.message }, { status: 500 });
-  }
-
-  if (!order) {
-    return NextResponse.json({ error: "Pedido não encontrado." }, { status: 404 });
-  }
+  if (orderErr) return NextResponse.json({ error: orderErr.message }, { status: 500 });
+  if (!order) return NextResponse.json({ error: "Pedido não encontrado." }, { status: 404 });
 
   let authorized = false;
 
@@ -103,8 +97,7 @@ export async function POST(req: Request) {
   }
 
   if (!authorized && whatsapp && order.customer_whatsapp) {
-    authorized =
-      normalizeWhatsApp(whatsapp) === normalizeWhatsApp(order.customer_whatsapp as string);
+    authorized = normalizeWhatsApp(whatsapp) === normalizeWhatsApp(order.customer_whatsapp as string);
   }
 
   if (!authorized && email && order.customer_email) {
@@ -124,9 +117,7 @@ export async function POST(req: Request) {
     .eq("order_id", order.id)
     .order("id", { ascending: true });
 
-  if (itemsErr) {
-    return NextResponse.json({ error: itemsErr.message }, { status: 500 });
-  }
+  if (itemsErr) return NextResponse.json({ error: itemsErr.message }, { status: 500 });
 
   return NextResponse.json({
     ok: true,

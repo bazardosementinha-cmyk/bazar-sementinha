@@ -1,9 +1,8 @@
 import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
-
 import { supabaseService } from "@/lib/supabase/service";
 
-type PaymentPlan = "pix_now" | "card_pickup_deposit" | "pay_pickup_24h";
+type PaymentPlan = "pix_now" | "card_pickup_deposit";
 
 type ItemRow = {
   id: string;
@@ -11,6 +10,13 @@ type ItemRow = {
   title: string;
   price: number;
   status: string;
+};
+
+type CustomerRow = {
+  id: string;
+  email: string | null;
+  whatsapp: string | null;
+  created_at?: string;
 };
 
 type BodyCustomer = {
@@ -62,6 +68,14 @@ function normalizeWhatsApp(raw: string): string {
   return `55${digits}`;
 }
 
+function normalizeEmail(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
+}
+
 function formatBRL(value: number): string {
   return value.toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
@@ -78,7 +92,7 @@ function makeCode(): string {
 
 function pickPaymentPlan(value: unknown): PaymentPlan {
   const s = asString(value);
-  if (s === "pix_now" || s === "card_pickup_deposit" || s === "pay_pickup_24h") return s;
+  if (s === "pix_now" || s === "card_pickup_deposit") return s;
   return "pix_now";
 }
 
@@ -110,7 +124,7 @@ function whatsappUrlForOrder(code: string, total: number) {
   const text =
     `Olá! Pedido ${code} criado no Bazar do Sementinha. ` +
     `Total: R$ ${formatBRL(total)}. ` +
-    `Vou enviar o comprovante do Pix aqui (se aplicável) e combinar a retirada.`;
+    `Vou enviar o comprovante do Pix aqui e combinar a retirada.`;
   return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(text)}`;
 }
 
@@ -143,6 +157,31 @@ function makeTrackingToken(code: string, whatsapp: string) {
     .slice(0, 24);
 }
 
+async function findExistingCustomer(supabase: ReturnType<typeof supabaseService>, email: string, whatsapp: string) {
+  const { data: byEmail, error: byEmailErr } = await supabase
+    .from("customers")
+    .select("id,email,whatsapp,created_at")
+    .ilike("email", email)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (byEmailErr) throw byEmailErr;
+  const emailMatch = ((byEmail ?? []) as CustomerRow[])[0];
+  if (emailMatch?.id) return emailMatch;
+
+  const { data: byWhatsapp, error: byWhatsappErr } = await supabase
+    .from("customers")
+    .select("id,email,whatsapp,created_at")
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (byWhatsappErr) throw byWhatsappErr;
+
+  return ((byWhatsapp ?? []) as CustomerRow[]).find(
+    (row) => normalizeWhatsApp(row.whatsapp || "") === whatsapp
+  ) ?? null;
+}
+
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
@@ -169,12 +208,15 @@ export async function POST(req: Request) {
     const customerRaw = raw.customer as BodyCustomer | undefined;
     const name = asString(customerRaw?.name)?.trim() ?? "";
     const whatsappRaw = asString(customerRaw?.whatsapp)?.trim() ?? "";
-    const email = asString(customerRaw?.email)?.trim() || null;
+    const emailRaw = asString(customerRaw?.email)?.trim() ?? "";
+    const email = normalizeEmail(emailRaw);
     const instagram = asString(customerRaw?.instagram)?.trim() || null;
     const optInMarketing = asBoolean(customerRaw?.opt_in_marketing);
 
     if (!name) return NextResponse.json({ error: "Nome é obrigatório." }, { status: 400 });
     if (!whatsappRaw) return NextResponse.json({ error: "WhatsApp é obrigatório." }, { status: 400 });
+    if (!email) return NextResponse.json({ error: "E-mail é obrigatório." }, { status: 400 });
+    if (!isValidEmail(email)) return NextResponse.json({ error: "Informe um e-mail válido." }, { status: 400 });
 
     const whatsapp = normalizeWhatsApp(whatsappRaw);
     if (whatsapp.length < 12) {
@@ -205,20 +247,17 @@ export async function POST(req: Request) {
 
     const total = available.reduce((acc, it) => acc + (Number(it.price) || 0), 0);
 
-    const { data: existingCustomer, error: custFindErr } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("whatsapp", whatsapp)
-      .maybeSingle();
-
-    if (custFindErr) {
-      return NextResponse.json({ error: getErrorMessage(custFindErr) }, { status: 500 });
+    let existingCustomer: CustomerRow | null = null;
+    try {
+      existingCustomer = await findExistingCustomer(supabase, email, whatsapp);
+    } catch (findErr) {
+      return NextResponse.json({ error: getErrorMessage(findErr) }, { status: 500 });
     }
 
     let customerId: string;
 
     if (existingCustomer?.id) {
-      customerId = existingCustomer.id as string;
+      customerId = existingCustomer.id;
 
       const { error: custUpdErr } = await supabase
         .from("customers")

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AddToCartButton } from "@/components/AddToCartButton";
 
 type ItemStatus = "review" | "available" | "reserved" | "sold";
+type PaymentPlan = "pix_now" | "card_pickup_deposit";
 
 type PublicItem = {
   id: string;
@@ -17,8 +18,6 @@ type PublicItem = {
   price: number | null;
   status: ItemStatus;
 };
-
-type PaymentPlan = "pix_now" | "card_pickup_deposit" | "pay_pickup_24h";
 
 type CreatedOrderItem = {
   short_id: string;
@@ -49,6 +48,7 @@ type CreateOrderResponse = CreateOrderSuccess | { error: string };
 
 const CART_LS_KEY = "bazar_cart";
 const CUSTOMER_LS_KEY = "bazar_customer";
+const CUSTOMER_ACCESS_LS_KEY = "bazar_customer_access";
 const LAST_ORDER_SESSION_KEY = "bazar_last_order_summary";
 
 const PIX_KEY = "58.392.598/0001-91";
@@ -87,14 +87,20 @@ function formatDateTime(value: string | null) {
   });
 }
 
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
+}
+
 function paymentPlanLabel(plan: PaymentPlan) {
   switch (plan) {
     case "pix_now":
       return "Pix agora (valor total)";
     case "card_pickup_deposit":
-      return "Cartão na retirada (caução Pix)";
-    case "pay_pickup_24h":
-      return "Pagar na retirada";
+      return "Cartão na retirada (caução PIX R$ 10,00)";
     default:
       return "Forma de pagamento";
   }
@@ -104,35 +110,24 @@ function paymentDeadlineText(order: CreateOrderSuccess["order"]) {
   if (order.payment_plan === "pix_now") {
     const deadline = formatDateTime(order.expires_at);
     return deadline
-      ? `Envie o comprovante do Pix até ${deadline}.`
-      : "Envie o comprovante do Pix pelo WhatsApp.";
+      ? `Envie o comprovante do Pix em até 24 horas após a criação do pedido. Prazo limite estimado: ${deadline}.`
+      : "Envie o comprovante do Pix em até 24 horas após a criação do pedido.";
   }
 
-  if (order.payment_plan === "card_pickup_deposit") {
-    const deadline = formatDateTime(order.pickup_deadline_at);
-    const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
-    return deadline
-      ? `Envie a caução de ${deposit} e retire até ${deadline}.`
-      : `Envie a caução de ${deposit} e combine a retirada.`;
-  }
-
-  const deadline = formatDateTime(order.expires_at);
+  const deadline = formatDateTime(order.pickup_deadline_at);
+  const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
   return deadline
-    ? `Combine a retirada e faça o pagamento em até ${deadline}.`
-    : "Combine a retirada pelo WhatsApp.";
+    ? `Envie a caução de ${deposit} e combine a retirada em até 15 dias. Prazo limite estimado: ${deadline}.`
+    : `Envie a caução de ${deposit} e combine a retirada em até 15 dias.`;
 }
 
 function paymentNextStepText(order: CreateOrderSuccess["order"]) {
   if (order.payment_plan === "pix_now") {
-    return "Use o botão abaixo para enviar o print/comprovante do Pix. Assim a equipe consegue validar o pagamento e seguir com a separação do pedido.";
+    return "Use o botão abaixo para enviar o print/comprovante do Pix e acertar a retirada no Tucxa2 pelo WhatsApp.";
   }
 
-  if (order.payment_plan === "card_pickup_deposit") {
-    const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
-    return `Envie o comprovante da caução de ${deposit} pelo WhatsApp. O restante pode ser pago no cartão na retirada.`;
-  }
-
-  return "Use o WhatsApp para combinar a retirada. O pagamento será feito no momento da retirada, por Pix ou cartão.";
+  const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
+  return `Use o botão abaixo para enviar o comprovante da caução de ${deposit} e acertar a retirada no Tucxa2 pelo WhatsApp.`;
 }
 
 function shouldShowPixBox(order: CreateOrderSuccess["order"]) {
@@ -141,26 +136,12 @@ function shouldShowPixBox(order: CreateOrderSuccess["order"]) {
 
 function buildOrderWhatsappLink(order: CreateOrderSuccess["order"]) {
   const totalBr = formatBRL(order.total);
-  const depositBr =
-    typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
+  const depositBr = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
 
-  let text = "";
-
-  if (order.payment_plan === "pix_now") {
-    text =
-      `Olá! Vou enviar agora o *print/comprovante do Pix* do pedido ${order.code}. ` +
-      `Valor: ${totalBr}. ` +
-      `Chave Pix: ${PIX_KEY} — ${PIX_FAVORED}.`;
-  } else if (order.payment_plan === "card_pickup_deposit") {
-    text =
-      `Olá! Vou enviar agora o *print/comprovante da caução Pix* do pedido ${order.code}. ` +
-      `Valor da caução: ${depositBr}. ` +
-      `Chave Pix: ${PIX_KEY} — ${PIX_FAVORED}.`;
-  } else {
-    text =
-      `Olá! Quero combinar a retirada do pedido ${order.code}. ` +
-      `Valor do pedido: ${totalBr}.`;
-  }
+  const text =
+    order.payment_plan === "pix_now"
+      ? `Olá! Vou enviar agora o *print/comprovante do Pix* do pedido ${order.code}. Valor: ${totalBr}. Chave Pix: ${PIX_KEY} — ${PIX_FAVORED}.`
+      : `Olá! Vou enviar agora o *print/comprovante da caução Pix* do pedido ${order.code}. Valor da caução: ${depositBr}. Chave Pix: ${PIX_KEY} — ${PIX_FAVORED}.`;
 
   return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(text)}`;
 }
@@ -173,6 +154,14 @@ function persistCustomer(data: {
 }) {
   if (typeof window === "undefined") return;
   localStorage.setItem(CUSTOMER_LS_KEY, JSON.stringify(data));
+}
+
+function persistCustomerAccess(data: { email: string; whatsapp: string }) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(
+    CUSTOMER_ACCESS_LS_KEY,
+    JSON.stringify({ email: normalizeEmail(data.email), whatsapp: data.whatsapp.trim() })
+  );
 }
 
 function restoreLastOrderFromSession(code: string | null): CreateOrderSuccess | null {
@@ -314,6 +303,16 @@ export default function CheckoutClient() {
       return;
     }
 
+    if (!email.trim()) {
+      setError("E-mail é obrigatório.");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setError("Informe um e-mail válido.");
+      return;
+    }
+
     setCreating(true);
 
     try {
@@ -326,7 +325,7 @@ export default function CheckoutClient() {
           customer: {
             name: name.trim(),
             whatsapp: whatsapp.trim(),
-            email: email.trim() || null,
+            email: normalizeEmail(email),
             instagram: null,
             opt_in_marketing: optInMarketing,
           },
@@ -339,10 +338,14 @@ export default function CheckoutClient() {
       const okData = data as CreateOrderSuccess;
 
       persistCustomer({
-        name,
-        whatsapp,
-        email,
+        name: name.trim(),
+        whatsapp: whatsapp.trim(),
+        email: normalizeEmail(email),
         optInMarketing,
+      });
+      persistCustomerAccess({
+        email: normalizeEmail(email),
+        whatsapp: whatsapp.trim(),
       });
 
       if (typeof window !== "undefined") {
@@ -370,15 +373,15 @@ export default function CheckoutClient() {
           <p className="mt-1 text-sm text-neutral-600">
             {isCompleted
               ? "Seu pedido foi criado com sucesso. Acompanhe o status e, se necessário, envie o comprovante pelo WhatsApp."
-              : "Informe seus dados para atendimento no WhatsApp. Promoções só com consentimento."}
+              : "Informe seus dados para atendimento no WhatsApp e acesso aos seus pedidos."}
           </p>
         </div>
 
         <Link
-          href={isCompleted ? "/" : "/carrinho"}
+          href={isCompleted ? "/meus-pedidos" : "/carrinho"}
           className="rounded-full border px-4 py-2 text-sm hover:bg-neutral-50"
         >
-          {isCompleted ? "Continuar comprando" : "Voltar ao carrinho"}
+          {isCompleted ? "Meus pedidos" : "Voltar ao carrinho"}
         </Link>
       </div>
 
@@ -388,12 +391,7 @@ export default function CheckoutClient() {
         </div>
       )}
 
-      {isCompleted && okCode && (
-        <OrderCompletionCard
-          created={created}
-          okCode={okCode}
-        />
-      )}
+      {isCompleted && okCode && <OrderCompletionCard created={created} okCode={okCode} />}
 
       {!isCompleted && (
         <>
@@ -481,7 +479,7 @@ export default function CheckoutClient() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-sm font-medium">E-mail (opcional)</label>
+                <label className="text-sm font-medium">E-mail (obrigatório)</label>
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -517,7 +515,9 @@ export default function CheckoutClient() {
                 <div>
                   <div className="font-semibold">Pix agora (valor total)</div>
                   <div className="text-sm text-neutral-600">
-                    Recomendado para confirmar rápido. Prazo padrão: 24h.
+                    Recomendado para garantir a reserva e acertar a retirada no Tucxa2 pelo WhatsApp.
+                    <br />
+                    Pedidos com pagamentos não realizados em até 24 horas após a criação deles serão automaticamente cancelados.
                   </div>
                 </div>
               </label>
@@ -532,26 +532,9 @@ export default function CheckoutClient() {
                   className="mt-1"
                 />
                 <div>
-                  <div className="font-semibold">Cartão na retirada (caução Pix R$ 10,00)</div>
+                  <div className="font-semibold">Cartão na retirada (caução PIX R$ 10,00)</div>
                   <div className="text-sm text-neutral-600">
-                    Prazo máximo: 15 dias. Caução devolvida na retirada/pagamento.
-                  </div>
-                </div>
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-4">
-                <input
-                  type="radio"
-                  name="paymentPlan"
-                  value="pay_pickup_24h"
-                  checked={paymentPlan === "pay_pickup_24h"}
-                  onChange={() => setPaymentPlan("pay_pickup_24h")}
-                  className="mt-1"
-                />
-                <div>
-                  <div className="font-semibold">Pagar na retirada (Pix ou cartão)</div>
-                  <div className="text-sm text-neutral-600">
-                    Se não pagar em 24h, o pedido pode ser cancelado automaticamente.
+                    Prazo máximo de 15 dias para acertar a retirada no Tucxa2 pelo WhatsApp. O valor da caução será devolvido na retirada/pagamento.
                   </div>
                 </div>
               </label>
@@ -573,7 +556,7 @@ export default function CheckoutClient() {
                 </button>
               </div>
               <div className="mt-2 text-sm text-neutral-600">
-                Após criar o pedido, você verá o código e poderá enviar o comprovante no WhatsApp com 1 clique.
+                Após criar o pedido, você poderá acompanhar todos os seus pedidos em um só lugar.
               </div>
             </div>
 
@@ -624,11 +607,8 @@ function OrderCompletionCard({
           Código: <span className="font-mono font-semibold">{okCode}</span>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Link
-            href={`/pedido?code=${encodeURIComponent(okCode)}`}
-            className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
-          >
-            Acompanhar pedido
+          <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+            Ver meus pedidos
           </Link>
           <Link href="/" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
             Continuar comprando
@@ -650,15 +630,12 @@ function OrderCompletionCard({
         <div>
           <div className="text-lg font-semibold">Pedido criado ✅</div>
           <p className="mt-1 text-sm text-neutral-600">
-            Seu pedido já foi reservado. Agora é só seguir a orientação abaixo para pagamento/retirada.
+            Seu pedido já foi reservado. Agora é só seguir a orientação abaixo para pagamento e retirada.
           </p>
         </div>
 
-        <Link
-          href={tracking.url}
-          className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
-        >
-          Acompanhar pedido
+        <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+          Ver meus pedidos
         </Link>
       </div>
 
@@ -712,9 +689,7 @@ function OrderCompletionCard({
                 <div className="font-medium">{it.title || "Item"}</div>
                 <div className="mt-1 text-sm text-neutral-600">#{it.short_id}</div>
               </div>
-              <div className="font-semibold">
-                {typeof it.price === "number" ? formatBRL(it.price) : ""}
-              </div>
+              <div className="font-semibold">{typeof it.price === "number" ? formatBRL(it.price) : ""}</div>
             </div>
           ))}
         </div>
@@ -732,16 +707,15 @@ function OrderCompletionCard({
           rel="noreferrer"
           className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
         >
-          {order.payment_plan === "pay_pickup_24h"
-            ? "Combinar retirada no WhatsApp"
-            : "Enviar comprovante no WhatsApp"}
+          Enviar comprovante no WhatsApp
         </a>
 
-        <Link
-          href={tracking.url}
-          className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
-        >
-          Ver acompanhamento do pedido
+        <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+          Acessar meus pedidos
+        </Link>
+
+        <Link href={tracking.url} className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+          Ver este pedido
         </Link>
 
         <Link href="/" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
@@ -841,15 +815,10 @@ function CompleteSelection({
             </div>
 
             <div className="mt-2 flex items-center justify-between gap-2">
-              <div className="font-semibold">
-                {typeof it.price === "number" ? formatBRL(it.price) : ""}
-              </div>
+              <div className="font-semibold">{typeof it.price === "number" ? formatBRL(it.price) : ""}</div>
 
               <div className="flex items-center gap-2">
-                <Link
-                  href={`/i/${it.short_id}`}
-                  className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50"
-                >
+                <Link href={`/i/${it.short_id}`} className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50">
                   Ver
                 </Link>
 

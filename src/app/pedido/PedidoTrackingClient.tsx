@@ -47,7 +47,6 @@ function formatDateTime(value: string | null) {
   if (!value) return null;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return null;
-
   return d.toLocaleString("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
@@ -59,7 +58,7 @@ function paymentPlanLabel(plan: PaymentPlan) {
     case "pix_now":
       return "Pix agora (valor total)";
     case "card_pickup_deposit":
-      return "Cartão na retirada (caução Pix)";
+      return "Cartão na retirada (caução PIX R$ 10,00)";
     case "pay_pickup_24h":
       return "Pagar na retirada";
     default:
@@ -103,7 +102,7 @@ function nextActionText(data: Extract<TrackResponse, { ok: true }>) {
   const { order } = data;
 
   if (order.status === "cancelled" || order.status === "canceled") {
-    return "Este pedido foi cancelado. Se precisar, fale com a equipe e confira itens disponíveis no catálogo.";
+    return "Este pedido foi cancelado. Se precisar, fale com a equipe e confira outros itens disponíveis no catálogo.";
   }
 
   if (order.status === "delivered") {
@@ -111,28 +110,25 @@ function nextActionText(data: Extract<TrackResponse, { ok: true }>) {
   }
 
   if (order.status === "paid") {
-    return "Pagamento confirmado. Agora falta apenas combinar/confirmar a retirada.";
+    return "Pagamento confirmado. Agora falta apenas acertar ou confirmar a retirada no Tucxa2 pelo WhatsApp.";
   }
 
   if (order.payment_plan === "pix_now") {
     const deadline = formatDateTime(order.expires_at);
     return deadline
-      ? `Envie o comprovante do Pix até ${deadline}.`
-      : "Envie o comprovante do Pix pelo WhatsApp.";
+      ? `Envie o comprovante do Pix até ${deadline} e acerte a retirada no Tucxa2 pelo WhatsApp.`
+      : "Envie o comprovante do Pix e acerte a retirada no Tucxa2 pelo WhatsApp.";
   }
 
   if (order.payment_plan === "card_pickup_deposit") {
     const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
     const deadline = formatDateTime(order.pickup_deadline_at);
     return deadline
-      ? `Envie a caução de ${deposit} e retire até ${deadline}.`
-      : `Envie a caução de ${deposit} e combine a retirada.`;
+      ? `Envie a caução de ${deposit} e acerte a retirada no Tucxa2 até ${deadline}.`
+      : `Envie a caução de ${deposit} e acerte a retirada no Tucxa2.`;
   }
 
-  const deadline = formatDateTime(order.expires_at);
-  return deadline
-    ? `Combine a retirada e faça o pagamento em até ${deadline}.`
-    : "Combine a retirada pelo WhatsApp.";
+  return "Acompanhe o status do pedido e fale com a equipe pelo WhatsApp.";
 }
 
 function customerWhatsappLink(data: Extract<TrackResponse, { ok: true }>) {
@@ -273,9 +269,14 @@ export default function PedidoTrackingClient() {
           </p>
         </div>
 
-        <Link href="/" className="rounded-full border px-4 py-2 text-sm hover:bg-neutral-50">
-          Voltar ao catálogo
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/meus-pedidos" className="rounded-full border px-4 py-2 text-sm hover:bg-neutral-50">
+            Meus pedidos
+          </Link>
+          <Link href="/" className="rounded-full border px-4 py-2 text-sm hover:bg-neutral-50">
+            Voltar ao catálogo
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-2xl border bg-white p-5">
@@ -364,13 +365,11 @@ export default function PedidoTrackingClient() {
                 rel="noreferrer"
                 className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
               >
-                {data.order.payment_plan === "pay_pickup_24h"
-                  ? "Falar no WhatsApp sobre retirada"
-                  : "Enviar comprovante / falar no WhatsApp"}
+                Enviar comprovante / falar no WhatsApp
               </a>
 
-              <Link href="/" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
-                Continuar comprando
+              <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+                Ver meus pedidos
               </Link>
             </div>
           </div>
