@@ -5,6 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { formatBRL, statusLabel, type ItemStatus } from "@/lib/utils";
 
+type ReservationLock = {
+  locked: boolean;
+  order_code: string | null;
+  deadline_at: string | null;
+  payment_plan: string | null;
+};
+
 type ItemRow = {
   id: string;
   short_id: string;
@@ -15,6 +22,7 @@ type ItemRow = {
   price_from: number | null;
   status: ItemStatus;
   created_at: string;
+  reservation_lock?: ReservationLock;
 };
 
 const tabs: Array<{ key: ItemStatus | "all"; label: string }> = [
@@ -34,6 +42,21 @@ function pillClass(active: boolean) {
   return active
     ? "rounded-full border border-slate-900 bg-slate-900 px-3 py-1 text-sm font-semibold text-white"
     : "rounded-full border bg-white px-3 py-1 text-sm font-semibold hover:bg-slate-50";
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function reservationLockText(lock?: ReservationLock) {
+  if (!lock?.locked) return null;
+  const deadline = formatDateTime(lock.deadline_at);
+  return deadline
+    ? `Pedido ${lock.order_code ?? "ativo"} protegido até ${deadline}`
+    : `Pedido ${lock.order_code ?? "ativo"} com reserva ativa`;
 }
 
 export default function AdminItensPage() {
@@ -143,11 +166,15 @@ export default function AdminItensPage() {
   }
 
   function ActionStatusButtons({ it }: { it: ItemRow }) {
+    const lockText = reservationLockText(it.reservation_lock);
+    const isLockedForAvailable = it.reservation_lock?.locked === true;
+
     return (
       <div className="flex flex-wrap gap-2">
         <button
-          disabled={busyId === it.short_id}
-          className="rounded-lg bg-emerald-600 px-2 py-1 text-white hover:bg-emerald-700 disabled:opacity-60"
+          disabled={busyId === it.short_id || isLockedForAvailable}
+          title={isLockedForAvailable ? (lockText ?? "Item com reserva ativa.") : undefined}
+          className="rounded-lg bg-emerald-600 px-2 py-1 text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
           onClick={() => setStatus(it.short_id, "available")}
           type="button"
         >
@@ -173,13 +200,23 @@ export default function AdminItensPage() {
     );
   }
 
+  function StatusInfo({ it }: { it: ItemRow }) {
+    const lockText = reservationLockText(it.reservation_lock);
+
+    return (
+      <div>
+        <div>{statusLabel(it.status)}</div>
+        {lockText ? <div className="mt-1 text-xs font-medium text-amber-700">{lockText}</div> : null}
+      </div>
+    );
+  }
+
   const isItens = pathname?.startsWith("/admin/itens");
   const isPedidos = pathname?.startsWith("/admin/pedidos");
   const isRelatorio = pathname?.startsWith("/admin/relatorio");
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      {/* ✅ Removido "Itens" duplicado (mantém apenas os pills) */}
       <div className="flex flex-wrap items-center gap-2">
         <Link href="/admin/itens" className={pillClass(!!isItens)}>
           Itens
@@ -194,7 +231,6 @@ export default function AdminItensPage() {
 
       <p className="mt-2 text-slate-600">Gerencie status (Disponível / Reservado / Vendido).</p>
 
-      {/* ✅ "Criar" vem antes de "Todos" */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link href="/admin/importar" className={pillClass(false)}>
           Criar
@@ -222,7 +258,9 @@ export default function AdminItensPage() {
                 <div className="text-xs text-slate-500">{it.category}</div>
                 <div className="font-semibold">{formatBRL(Number(it.price))}</div>
                 {it.price_from ? <div className="text-xs text-slate-500 line-through">{formatBRL(Number(it.price_from))}</div> : null}
-                <div className="mt-1 text-xs font-semibold text-slate-700">{statusLabel(it.status)}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-700">
+                  <StatusInfo it={it} />
+                </div>
               </div>
             </div>
 
@@ -263,7 +301,9 @@ export default function AdminItensPage() {
                   <div className="font-semibold">{formatBRL(Number(it.price))}</div>
                   {it.price_from ? <div className="text-xs text-slate-500 line-through">{formatBRL(Number(it.price_from))}</div> : null}
                 </td>
-                <td className="px-3 py-2">{statusLabel(it.status)}</td>
+                <td className="px-3 py-2">
+                  <StatusInfo it={it} />
+                </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-2">
                     <ActionLinks it={it} />

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { supabaseServer } from "@/lib/supabase/server";
+import { supabaseService } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
 
@@ -14,6 +14,27 @@ type ItemRow = {
   sold_price_final: number | null;
 };
 
+type OrderItemRef = {
+  order_id: string;
+};
+
+type OrderRow = {
+  id: string;
+  code: string;
+  status: string;
+  expires_at: string | null;
+  pickup_deadline_at: string | null;
+  payment_plan: string | null;
+};
+
+type ActiveReservationLock = {
+  locked: true;
+  order_id: string;
+  order_code: string;
+  deadline_at: string | null;
+  payment_plan: string | null;
+};
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
 }
@@ -25,7 +46,6 @@ function parseStatus(v: unknown): ItemStatus | null {
 }
 
 function parseMoneyBR(input: unknown): number | null {
-  // aceita number, "115,00", "1.299,90", "1299.90"
   if (typeof input === "number" && Number.isFinite(input)) return input;
   if (typeof input !== "string") return null;
 
@@ -39,12 +59,75 @@ function parseMoneyBR(input: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function getOrderDeadline(order: Pick<OrderRow, "pickup_deadline_at" | "expires_at">): string | null {
+  return order.pickup_deadline_at || order.expires_at || null;
+}
+
+function isActiveReservedOrder(order: OrderRow, nowMs: number): boolean {
+  if (order.status !== "reserved") return false;
+
+  const deadline = getOrderDeadline(order);
+  if (!deadline) return true;
+
+  const deadlineMs = new Date(deadline).getTime();
+  if (Number.isNaN(deadlineMs)) return true;
+
+  return deadlineMs > nowMs;
+}
+
+function lockScore(order: OrderRow): number {
+  const deadline = getOrderDeadline(order);
+  if (!deadline) return Number.MAX_SAFE_INTEGER;
+
+  const ms = new Date(deadline).getTime();
+  return Number.isNaN(ms) ? Number.MAX_SAFE_INTEGER : ms;
+}
+
+async function findActiveReservationLock(
+  supabase: ReturnType<typeof supabaseService>,
+  itemId: string
+): Promise<{ data: ActiveReservationLock | null; error: string | null }> {
+  const { data: refs, error: refsErr } = await supabase
+    .from("order_items")
+    .select("order_id")
+    .eq("item_id", itemId);
+
+  if (refsErr) return { data: null, error: refsErr.message };
+
+  const orderIds = Array.from(new Set((refs ?? []).map((r) => (r as OrderItemRef).order_id))).filter(Boolean);
+  if (!orderIds.length) return { data: null, error: null };
+
+  const { data: orders, error: ordersErr } = await supabase
+    .from("orders")
+    .select("id,code,status,expires_at,pickup_deadline_at,payment_plan")
+    .in("id", orderIds);
+
+  if (ordersErr) return { data: null, error: ordersErr.message };
+
+  const nowMs = Date.now();
+  const active = ((orders ?? []) as OrderRow[])
+    .filter((order) => isActiveReservedOrder(order, nowMs))
+    .sort((a, b) => lockScore(b) - lockScore(a))[0];
+
+  if (!active) return { data: null, error: null };
+
+  return {
+    data: {
+      locked: true,
+      order_id: active.id,
+      order_code: active.code,
+      deadline_at: getOrderDeadline(active),
+      payment_plan: active.payment_plan,
+    },
+    error: null,
+  };
+}
+
 export async function POST(req: Request) {
   const gate = await requireAdmin();
   if (!gate.ok) return NextResponse.json({ error: gate.reason }, { status: 401 });
 
-  // ✅ supabaseServer() é async no seu projeto
-  const supabase = await supabaseServer();
+  const supabase = supabaseService();
 
   let bodyUnknown: unknown;
   try {
@@ -74,7 +157,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Payload inválido: sold_price_final inválido." }, { status: 400 });
   }
 
-  // 1) Carrega item
   const baseQ = supabase
     .from("items")
     .select("id, short_id, price, sold_price, sold_price_final")
@@ -89,22 +171,34 @@ export async function POST(req: Request) {
 
   const item = itemRow as ItemRow;
 
-  // 2) Monta update
+  if (status === "available") {
+    const { data: lock, error: lockErr } = await findActiveReservationLock(supabase, item.id);
+    if (lockErr) return NextResponse.json({ error: lockErr }, { status: 500 });
+
+    if (lock) {
+      const deadlineText = lock.deadline_at ? ` até ${lock.deadline_at}` : "";
+      return NextResponse.json(
+        {
+          error: `O item #${item.short_id} está vinculado ao pedido ${lock.order_code} e não pode voltar para disponível enquanto a reserva estiver ativa${deadlineText}.`,
+          lock,
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   const updatePayload: Partial<ItemRow> & { status: ItemStatus } = { status };
 
-  // Se virou vendido: salva snapshot do preço anunciado + preço final
   if (status === "sold") {
-    const announced = (typeof item.price === "number" && Number.isFinite(item.price)) ? item.price : 0;
+    const announced = typeof item.price === "number" && Number.isFinite(item.price) ? item.price : 0;
 
-    // sold_price = snapshot do anunciado ao vender (se já existe, mantém)
     const soldPrice =
       typeof item.sold_price === "number" && Number.isFinite(item.sold_price) ? item.sold_price : announced;
 
-    // sold_price_final = informado ou fallback para sold_price/announced
     const soldFinal =
       soldPriceFinalParsed != null
         ? soldPriceFinalParsed
-        : (typeof item.sold_price_final === "number" && Number.isFinite(item.sold_price_final))
+        : typeof item.sold_price_final === "number" && Number.isFinite(item.sold_price_final)
           ? item.sold_price_final
           : soldPrice;
 
