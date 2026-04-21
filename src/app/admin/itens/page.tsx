@@ -169,6 +169,10 @@ export default function AdminItensPage() {
     const lockText = reservationLockText(it.reservation_lock);
     const isLockedForAvailable = it.reservation_lock?.locked === true;
 
+    if (it.status === "sold") {
+      return null;
+    }
+
     return (
       <div className="flex flex-wrap gap-2">
         <button
@@ -180,14 +184,18 @@ export default function AdminItensPage() {
         >
           Disponível
         </button>
-        <button
-          disabled={busyId === it.short_id}
-          className="rounded-lg bg-amber-600 px-2 py-1 text-white hover:bg-amber-700 disabled:opacity-60"
-          onClick={() => setStatus(it.short_id, "reserved")}
-          type="button"
-        >
-          Reservar
-        </button>
+
+        {it.status !== "reserved" ? (
+          <button
+            disabled={busyId === it.short_id}
+            className="rounded-lg bg-amber-600 px-2 py-1 text-white hover:bg-amber-700 disabled:opacity-60"
+            onClick={() => setStatus(it.short_id, "reserved")}
+            type="button"
+          >
+            Reservar
+          </button>
+        ) : null}
+
         <button
           disabled={busyId === it.short_id}
           className="rounded-lg bg-slate-700 px-2 py-1 text-white hover:bg-slate-800 disabled:opacity-60"
