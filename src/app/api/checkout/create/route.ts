@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { supabaseService } from "@/lib/supabase/service";
@@ -125,6 +126,23 @@ function buildReminderRows(orderId: string, expiresAt: Date, plan: PaymentPlan) 
   ];
 }
 
+function getTrackingSecret() {
+  return (
+    process.env.ORDER_TRACKING_SECRET ||
+    process.env.CRON_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    "bazar-sementinha-dev-secret"
+  );
+}
+
+function makeTrackingToken(code: string, whatsapp: string) {
+  const normalizedWhatsapp = normalizeWhatsApp(whatsapp);
+  return createHmac("sha256", getTrackingSecret())
+    .update(`${code}:${normalizedWhatsapp}`)
+    .digest("hex")
+    .slice(0, 24);
+}
+
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
@@ -198,6 +216,7 @@ export async function POST(req: Request) {
     }
 
     let customerId: string;
+
     if (existingCustomer?.id) {
       customerId = existingCustomer.id as string;
 
@@ -236,6 +255,8 @@ export async function POST(req: Request) {
     }
 
     const code = makeCode();
+    const trackingToken = makeTrackingToken(code, whatsapp);
+    const trackingUrl = `/pedido?code=${encodeURIComponent(code)}&t=${encodeURIComponent(trackingToken)}`;
 
     const { data: order, error: orderErr } = await supabase
       .from("orders")
@@ -335,9 +356,17 @@ export async function POST(req: Request) {
         pickup_deadline_at:
           (order.pickup_deadline_at as string | null) ??
           (pickupDeadlineAt ? pickupDeadlineAt.toISOString() : null),
+        items: available.map((it) => ({
+          short_id: it.short_id,
+          title: it.title,
+          price: it.price,
+        })),
       },
       pix: { key: PIX_KEY, favored: PIX_FAVORED },
       whatsapp_url: whatsappUrlForOrder(order.code as string, total),
+      tracking: {
+        url: trackingUrl,
+      },
     });
   } catch (err) {
     return NextResponse.json({ error: getErrorMessage(err) }, { status: 500 });
