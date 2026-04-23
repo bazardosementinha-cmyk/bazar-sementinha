@@ -49,7 +49,10 @@ export default function CartClient() {
     setCartIds(readCart());
   }, []);
 
-  const total = useMemo(() => items.reduce((acc, it) => acc + (Number(it.price) || 0), 0), [items]);
+  const total = useMemo(
+    () => items.reduce((acc, it) => acc + (Number(it.price) || 0), 0),
+    [items]
+  );
 
   async function refresh() {
     const ids = readCart();
@@ -78,7 +81,6 @@ export default function CartClient() {
 
   useEffect(() => {
     void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function removeOne(shortId: string) {
@@ -97,7 +99,9 @@ export default function CartClient() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
       )}
 
       {loading && <div className="text-sm text-neutral-600">Carregando…</div>}
@@ -106,7 +110,9 @@ export default function CartClient() {
         {items.length === 0 ? (
           <div className="rounded-xl border bg-white p-5">
             <div className="font-semibold">Itens</div>
-            <div className="mt-2 text-sm text-neutral-600">Seu carrinho está vazio (ou não há itens disponíveis).</div>
+            <div className="mt-2 text-sm text-neutral-600">
+              Seu carrinho está vazio (ou não há itens disponíveis).
+            </div>
           </div>
         ) : (
           items.map((it) => (
@@ -115,7 +121,9 @@ export default function CartClient() {
                 <div>
                   <div className="font-semibold">{it.title || "Item"}</div>
                   <div className="mt-1 text-sm text-neutral-600">
-                    {(it.category || "").trim()}{it.category ? " • " : ""}{(it.condition || "").trim()}
+                    {(it.category || "").trim()}
+                    {it.category ? " • " : ""}
+                    {(it.condition || "").trim()}
                     {it.size ? ` • Tam.: ${it.size}` : ""}
                     {typeof it.price === "number" ? ` • ${formatBRL(it.price)}` : ""}
                     {it.short_id ? ` • ID: #${it.short_id}` : ""}
@@ -154,14 +162,16 @@ export default function CartClient() {
             >
               Limpar
             </button>
-            <Link href="/checkout" className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700">
+            <Link
+              href="/checkout"
+              className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
+            >
               Finalizar pedido
             </Link>
           </div>
         </div>
       </div>
 
-      {/* Complete sua seleção (cross-sell) */}
       <div className="rounded-xl border bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -179,7 +189,10 @@ export default function CartClient() {
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm text-neutral-600">Pronto para finalizar?</div>
-          <Link href="/checkout" className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700">
+          <Link
+            href="/checkout"
+            className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
+          >
             Ir para o checkout
           </Link>
         </div>
@@ -194,6 +207,7 @@ function SuggestedItems({ currentCart }: { currentCart: string[] }) {
 
   useEffect(() => {
     let ignore = false;
+
     async function run() {
       setLoading(true);
       try {
@@ -204,13 +218,20 @@ function SuggestedItems({ currentCart }: { currentCart: string[] }) {
         if (!ignore) setLoading(false);
       }
     }
+
     void run();
     return () => {
       ignore = true;
     };
   }, []);
 
-  const filtered = useMemo(() => list.filter((it) => it.status === "available" && !currentCart.includes(it.short_id)).slice(0, 4), [list, currentCart]);
+  const filtered = useMemo(
+    () =>
+      list
+        .filter((it) => it.status === "available" && !currentCart.includes(it.short_id))
+        .slice(0, 4),
+    [list, currentCart]
+  );
 
   if (loading) return <div className="mt-4 text-sm text-neutral-600">Carregando sugestões…</div>;
   if (filtered.length === 0) return null;
@@ -221,10 +242,14 @@ function SuggestedItems({ currentCart }: { currentCart: string[] }) {
         <div key={it.short_id} className="rounded-xl border p-4">
           <div className="font-semibold">{it.title || "Item"}</div>
           <div className="mt-1 text-sm text-neutral-600">
-            {(it.category || "").trim()}{it.category ? " • " : ""}{(it.condition || "").trim()}
+            {(it.category || "").trim()}
+            {it.category ? " • " : ""}
+            {(it.condition || "").trim()}
           </div>
           <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="font-semibold">{typeof it.price === "number" ? formatBRL(it.price) : ""}</div>
+            <div className="font-semibold">
+              {typeof it.price === "number" ? formatBRL(it.price) : ""}
+            </div>
             <div className="flex items-center gap-2">
               <Link
                 href={`/i/${it.short_id}`}

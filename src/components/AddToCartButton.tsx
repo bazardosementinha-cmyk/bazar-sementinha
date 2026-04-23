@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ItemStatus } from "@/lib/utils";
 
 const CART_LS_KEY = "bazar_cart";
@@ -8,54 +8,62 @@ const CART_LS_KEY = "bazar_cart";
 type Props = {
   shortId: string;
   disabled?: boolean;
-  /**
-   * Opcional: se informado e o item não estiver disponível, o botão fica desabilitado.
-   * (Útil para cards de recomendações.)
-   */
   status?: ItemStatus;
 };
 
+function readInCart(shortId: string): boolean {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const raw = localStorage.getItem(CART_LS_KEY);
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(arr) && arr.includes(shortId);
+  } catch {
+    return false;
+  }
+}
+
 export function AddToCartButton({ shortId, disabled, status }: Props) {
   const [busy, setBusy] = useState(false);
+  const [inCart, setInCart] = useState(false);
 
-  const isUnavailableByStatus = useMemo(() => {
-    if (!status) return false;
-    return status !== "available";
-  }, [status]);
+  const isUnavailableByStatus = Boolean(status && status !== "available");
 
-  const inCart = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      const raw = localStorage.getItem(CART_LS_KEY);
-      const arr = raw ? (JSON.parse(raw) as unknown) : [];
-      return Array.isArray(arr) && arr.includes(shortId);
-    } catch {
-      return false;
-    }
-  }, [shortId, busy]);
+  useEffect(() => {
+    setInCart(readInCart(shortId));
+  }, [shortId]);
 
   const onClick = useCallback(() => {
     if (typeof window === "undefined") return;
+
     setBusy(true);
     try {
       const raw = localStorage.getItem(CART_LS_KEY);
       const arr = raw ? (JSON.parse(raw) as unknown) : [];
-      const list = Array.isArray(arr) ? (arr.filter((x) => typeof x === "string") as string[]) : [];
+      const list = Array.isArray(arr)
+        ? (arr.filter((x) => typeof x === "string") as string[])
+        : [];
 
       if (!list.includes(shortId)) {
         list.push(shortId);
       }
 
       localStorage.setItem(CART_LS_KEY, JSON.stringify(list));
-      // força atualização do CartButton
+      setInCart(true);
+
       window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("bazar_cart_updated"));
     } finally {
       setBusy(false);
     }
   }, [shortId]);
 
   const isDisabled = Boolean(disabled) || busy || inCart || isUnavailableByStatus;
-  const label = isUnavailableByStatus ? "Indisponível" : inCart ? "No carrinho" : "Adicionar ao carrinho";
+  const label = isUnavailableByStatus
+    ? "Indisponível"
+    : inCart
+      ? "No carrinho"
+      : "Adicionar ao carrinho";
 
   return (
     <button
@@ -76,5 +84,4 @@ export function AddToCartButton({ shortId, disabled, status }: Props) {
   );
 }
 
-// Compatibilidade: alguns pontos do projeto usavam import default.
 export default AddToCartButton;

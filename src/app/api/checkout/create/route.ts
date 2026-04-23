@@ -1,6 +1,8 @@
-import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabase/service";
+import { buildTrackingRelativeUrl, normalizeWhatsApp } from "@/lib/order-links";
+import { buildOrderCreatedEmail, type MailOrderItem } from "@/lib/order-notifications";
+import { sendMail } from "@/lib/mail";
 
 type PaymentPlan = "pix_now" | "card_pickup_deposit";
 
@@ -38,6 +40,7 @@ const PIX_KEY = "58.392.598/0001-91";
 const PIX_FAVORED = "Templo de Umbanda Caboclo Sete Flexa";
 const SUPPORT_WA = "5519992360856";
 const PICKUP_LOCATION = "TUCXA2";
+const MAIL_CC = "bazardosementinha@gmail.com";
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -55,17 +58,6 @@ function asStringArray(value: unknown): string[] {
 
 function asBoolean(value: unknown): boolean {
   return value === true;
-}
-
-function onlyDigits(value: string): string {
-  return value.replace(/\D+/g, "");
-}
-
-function normalizeWhatsApp(raw: string): string {
-  const digits = onlyDigits(raw);
-  if (!digits) return "";
-  if (digits.startsWith("55")) return digits;
-  return `55${digits}`;
 }
 
 function normalizeEmail(raw: string): string {
@@ -140,24 +132,46 @@ function buildReminderRows(orderId: string, expiresAt: Date, plan: PaymentPlan) 
   ];
 }
 
-function getTrackingSecret() {
-  return (
-    process.env.ORDER_TRACKING_SECRET ||
-    process.env.CRON_SECRET ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    "bazar-sementinha-dev-secret"
-  );
+function getPublicSiteUrl(): string {
+  const raw =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.APP_BASE_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    "";
+
+  if (!raw) return "";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw.replace(/\/+$/, "");
+  return `https://${raw.replace(/\/+$/, "")}`;
 }
 
-function makeTrackingToken(code: string, whatsapp: string) {
-  const normalizedWhatsapp = normalizeWhatsApp(whatsapp);
-  return createHmac("sha256", getTrackingSecret())
-    .update(`${code}:${normalizedWhatsapp}`)
-    .digest("hex")
-    .slice(0, 24);
+function buildAbsoluteTrackingUrl(relativeUrl: string): string {
+  const base = getPublicSiteUrl();
+  if (!base) return relativeUrl;
+  return `${base}${relativeUrl.startsWith("/") ? relativeUrl : `/${relativeUrl}`}`;
 }
 
-async function findExistingCustomer(supabase: ReturnType<typeof supabaseService>, email: string, whatsapp: string) {
+function appendTrackingLink(text: string, html: string | undefined, trackingUrl: string) {
+  const safeUrl = buildAbsoluteTrackingUrl(trackingUrl);
+
+  const textWithLink =
+    `${text}\n\n` +
+    `Acompanhe seu pedido aqui:\n${safeUrl}\n`;
+
+  const htmlWithLink = html
+    ? `${html}<p style="margin-top:16px">Acompanhe seu pedido aqui:<br /><a href="${safeUrl}">${safeUrl}</a></p>`
+    : undefined;
+
+  return {
+    text: textWithLink,
+    html: htmlWithLink,
+  };
+}
+
+async function findExistingCustomer(
+  supabase: ReturnType<typeof supabaseService>,
+  email: string,
+  whatsapp: string
+) {
   const { data: byEmail, error: byEmailErr } = await supabase
     .from("customers")
     .select("id,email,whatsapp,created_at")
@@ -213,10 +227,18 @@ export async function POST(req: Request) {
     const instagram = asString(customerRaw?.instagram)?.trim() || null;
     const optInMarketing = asBoolean(customerRaw?.opt_in_marketing);
 
-    if (!name) return NextResponse.json({ error: "Nome é obrigatório." }, { status: 400 });
-    if (!whatsappRaw) return NextResponse.json({ error: "WhatsApp é obrigatório." }, { status: 400 });
-    if (!email) return NextResponse.json({ error: "E-mail é obrigatório." }, { status: 400 });
-    if (!isValidEmail(email)) return NextResponse.json({ error: "Informe um e-mail válido." }, { status: 400 });
+    if (!name) {
+      return NextResponse.json({ error: "Nome é obrigatório." }, { status: 400 });
+    }
+    if (!whatsappRaw) {
+      return NextResponse.json({ error: "WhatsApp é obrigatório." }, { status: 400 });
+    }
+    if (!email) {
+      return NextResponse.json({ error: "E-mail é obrigatório." }, { status: 400 });
+    }
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: "Informe um e-mail válido." }, { status: 400 });
+    }
 
     const whatsapp = normalizeWhatsApp(whatsappRaw);
     if (whatsapp.length < 12) {
@@ -294,8 +316,7 @@ export async function POST(req: Request) {
     }
 
     const code = makeCode();
-    const trackingToken = makeTrackingToken(code, whatsapp);
-    const trackingUrl = `/pedido?code=${encodeURIComponent(code)}&t=${encodeURIComponent(trackingToken)}`;
+    const trackingUrl = buildTrackingRelativeUrl(code, whatsapp);
 
     const { data: order, error: orderErr } = await supabase
       .from("orders")
@@ -379,6 +400,41 @@ export async function POST(req: Request) {
         { error: "Um ou mais itens ficaram indisponíveis durante o fechamento. Tente novamente." },
         { status: 409 }
       );
+    }
+
+    const mailItems: MailOrderItem[] = available.map((it) => ({
+      item_short_id: it.short_id,
+      item_title: it.title,
+      price: it.price,
+    }));
+
+    const createdMail = buildOrderCreatedEmail(
+      {
+        code,
+        customer_name: name,
+        customer_email: email,
+        customer_whatsapp: whatsapp,
+        total,
+        pix_key: PIX_KEY,
+        pickup_location: PICKUP_LOCATION,
+        expires_at: expiresAt.toISOString(),
+        pickup_deadline_at: pickupDeadlineAt ? pickupDeadlineAt.toISOString() : null,
+      },
+      mailItems
+    );
+
+    const mailBody = appendTrackingLink(createdMail.text, createdMail.html, trackingUrl);
+
+    const mailResult = await sendMail({
+      to: email,
+      cc: createdMail.cc || MAIL_CC,
+      subject: createdMail.subject,
+      text: mailBody.text,
+      html: mailBody.html,
+    });
+
+    if (!mailResult.ok) {
+      console.error("[checkout/create] Falha ao enviar e-mail do pedido:", mailResult.error);
     }
 
     return NextResponse.json({

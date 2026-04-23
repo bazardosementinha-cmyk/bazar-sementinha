@@ -7,7 +7,10 @@ type OrderRow = {
   code: string;
   status: string;
   total: number;
-  customer_instagram: string;
+  customer_name: string | null;
+  customer_email: string | null;
+  customer_whatsapp: string | null;
+  customer_instagram: string | null;
   expires_at: string;
   created_at: string;
 };
@@ -20,7 +23,7 @@ export async function GET() {
 
   const { data: orders, error } = await s
     .from("orders")
-    .select("id,code,status,total,customer_instagram,expires_at,created_at")
+    .select("id,code,status,total,customer_name,customer_email,customer_whatsapp,customer_instagram,expires_at,created_at")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -29,7 +32,6 @@ export async function GET() {
   const list = (orders ?? []) as OrderRow[];
   const orderIds = list.map((o) => o.id);
 
-  // Compute item counts per order
   let counts: Record<string, number> = {};
   if (orderIds.length) {
     const { data: items, error: iErr } = await s

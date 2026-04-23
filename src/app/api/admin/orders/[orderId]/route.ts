@@ -12,12 +12,14 @@ type Order = {
   total: number;
   pix_key: string;
   pickup_location: string;
-  customer_name: string;
+  customer_name: string | null;
   customer_email: string | null;
   customer_whatsapp: string | null;
-  customer_instagram: string;
+  customer_instagram: string | null;
   created_at: string;
   expires_at: string;
+  pickup_deadline_at: string | null;
+  payment_plan: string | null;
   paid_at: string | null;
   delivered_at: string | null;
   cancelled_at: string | null;
