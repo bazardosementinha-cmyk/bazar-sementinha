@@ -1,3 +1,4 @@
+import AdminProcessWelcomeModal from "@/components/AdminProcessWelcomeModal";
 import { TopBar } from "@/components/Shell";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -12,6 +13,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </form>
         }
       />
+      <AdminProcessWelcomeModal />
       {children}
     </>
   );

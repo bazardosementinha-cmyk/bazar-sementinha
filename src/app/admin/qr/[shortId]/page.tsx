@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import ContextHelp from "@/components/ContextHelp";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
 import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -28,11 +30,23 @@ export default async function AdminQrPage({ params }: { params: Promise<Params> 
         </Link>
       </div>
 
+      <ContextHelp topic={ADMIN_HELP_TOPICS.qr} className="mt-6" />
+
       <div className="mt-6 rounded-2xl border bg-white p-6">
         <div className="flex flex-col items-center gap-4">
           {/* QR externo (sem dependências) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={qrUrl} alt={`QR do item ${shortId}`} width={320} height={320} className="rounded-xl border" />
+        </div>
+
+        <div className="mt-5 rounded-2xl border bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="font-bold text-slate-950">Modelos de etiqueta recomendados</div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <div><b>Roupas:</b> tag pendurada no cabide ou na embalagem.</div>
+            <div><b>Bijuterias/joias:</b> etiqueta no saquinho individual.</div>
+            <div><b>Calçados/kits:</b> etiqueta maior na caixa ou embalagem.</div>
+            <div><b>Vidro/louça:</b> etiqueta com alerta de frágil.</div>
+          </div>
         </div>
 
         <div className="mt-5">

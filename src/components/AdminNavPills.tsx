@@ -15,6 +15,7 @@ export default function AdminNavPills() {
   const isItens = pathname?.startsWith("/admin/itens");
   const isPedidos = pathname?.startsWith("/admin/pedidos");
   const isRelatorio = pathname?.startsWith("/admin/relatorio");
+  const isManual = pathname?.startsWith("/admin/manual");
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -26,6 +27,9 @@ export default function AdminNavPills() {
       </Link>
       <Link href="/admin/relatorio" className={pillClass(!!isRelatorio)}>
         Relatório
+      </Link>
+      <Link href="/admin/manual" className={pillClass(!!isManual)}>
+        Manual
       </Link>
     </div>
   );

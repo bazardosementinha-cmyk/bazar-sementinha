@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState, type FormEvent } from "react";
+import ContextHelp from "@/components/ContextHelp";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
+import { getLabelRecommendation } from "@/lib/item-taxonomy";
 
 type ImportResult = { short_id: string; status: string };
 
@@ -414,6 +417,8 @@ export default function CadastrarItemPage() {
         </Link>
       </div>
 
+      <ContextHelp topic={ADMIN_HELP_TOPICS.importar} className="mt-4" />
+
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
@@ -562,7 +567,7 @@ export default function CadastrarItemPage() {
           </div>
 
           <div className="rounded-2xl border bg-slate-50 p-4">
-            <div className="font-semibold mb-2">Facetas para roupas</div>
+            <div className="font-semibold mb-2">Classificação e tamanho</div>
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
@@ -638,6 +643,12 @@ export default function CadastrarItemPage() {
                 />
               </div>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+            <div className="font-bold">Sugestão de etiqueta: {getLabelRecommendation({ category, sizeType, title, notesInternal }).title}</div>
+            <p className="mt-1">{getLabelRecommendation({ category, sizeType, title, notesInternal }).description}</p>
+            <p className="mt-1 text-emerald-800">{getLabelRecommendation({ category, sizeType, title, notesInternal }).printHint}</p>
           </div>
 
           <div>

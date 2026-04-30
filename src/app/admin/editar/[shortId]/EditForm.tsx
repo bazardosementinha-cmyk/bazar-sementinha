@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import ContextHelp from "@/components/ContextHelp";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
+import { getLabelRecommendation } from "@/lib/item-taxonomy";
 
 type ItemRow = {
   short_id: string;
@@ -56,6 +59,7 @@ export default function EditForm({ initialItem }: { initialItem: ItemRow }) {
 
   const descLen = useMemo(() => description.length, [description]);
   const descColor = descLen > 320 ? "text-red-600" : descLen > 280 ? "text-amber-600" : "text-slate-500";
+  const labelRecommendation = getLabelRecommendation({ category, sizeType, title, notesInternal });
 
   async function save() {
     setBusy(true);
@@ -110,6 +114,7 @@ export default function EditForm({ initialItem }: { initialItem: ItemRow }) {
 
   return (
     <div className="rounded-2xl border bg-white p-5">
+      <ContextHelp topic={ADMIN_HELP_TOPICS.editar} className="mb-4" />
       {!canEdit ? (
         <div className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
           Este item não está mais em <b>Em revisão</b>. Por segurança, a edição fica bloqueada.
@@ -208,7 +213,7 @@ export default function EditForm({ initialItem }: { initialItem: ItemRow }) {
       </div>
 
       <div className="mt-4 rounded-2xl border bg-slate-50 p-4">
-        <div className="font-semibold mb-2">Facetas para roupas</div>
+        <div className="font-semibold mb-2">Classificação e tamanho</div>
 
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
@@ -284,6 +289,12 @@ export default function EditForm({ initialItem }: { initialItem: ItemRow }) {
             />
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+        <div className="font-bold">Sugestão de etiqueta: {labelRecommendation.title}</div>
+        <p className="mt-1">{labelRecommendation.description}</p>
+        <p className="mt-1 text-emerald-800">{labelRecommendation.printHint}</p>
       </div>
 
       <div className="mt-4">

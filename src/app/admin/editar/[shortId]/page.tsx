@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import ContextHelp from "@/components/ContextHelp";
 import LegendPreview from "@/components/LegendPreview";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
+import { getLabelRecommendation } from "@/lib/item-taxonomy";
 
 type Item = {
   short_id: string;
@@ -186,6 +189,7 @@ export default function AdminEditarPage() {
   }, [title, condition, price, priceFrom, description, category]);
 
   const hashtags = useMemo(() => buildHashtags(category || "Outros"), [category]);
+  const labelRecommendation = getLabelRecommendation({ category, sizeType, title, notesInternal });
 
   async function onSave() {
     setSaving(true);
@@ -251,6 +255,8 @@ export default function AdminEditarPage() {
           ) : null}
         </div>
       </div>
+
+      <ContextHelp topic={ADMIN_HELP_TOPICS.editar} className="mt-4" />
 
       {loading ? <div className="mt-6 text-slate-600">Carregando...</div> : null}
 
@@ -352,7 +358,7 @@ export default function AdminEditarPage() {
               </div>
 
               <div className="rounded-2xl border bg-slate-50 p-4">
-                <div className="font-semibold mb-2">Facetas para roupas</div>
+                <div className="font-semibold mb-2">Classificação e tamanho</div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
                     <label className="text-sm font-medium">Sexo</label>
@@ -398,6 +404,12 @@ export default function AdminEditarPage() {
                     <input value={sizeValue} onChange={(e) => setSizeValue(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Ex.: M / 38 / 25cm" />
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                <div className="font-bold">Sugestão de etiqueta: {labelRecommendation.title}</div>
+                <p className="mt-1">{labelRecommendation.description}</p>
+                <p className="mt-1 text-emerald-800">{labelRecommendation.printHint}</p>
               </div>
 
               <div>
