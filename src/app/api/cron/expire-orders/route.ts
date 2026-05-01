@@ -4,6 +4,7 @@ import { buildCancellationEmail, buildReminderEmail, type MailOrder, type MailOr
 import { sendMail } from "@/lib/mail";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type ReminderRow = {
   id: string;

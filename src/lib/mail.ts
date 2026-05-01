@@ -1,3 +1,4 @@
+import nodemailer from "nodemailer";
 import {
   getEmailConfigHealth,
   getEmailNotificationsEnabled,
@@ -26,30 +27,11 @@ type TransportConfig = {
   };
 };
 
-type SendMailOptions = {
-  from: string;
-  to: string;
-  cc?: string;
-  bcc?: string;
-  subject: string;
-  text: string;
-  html?: string;
-};
-
 type SendMailInfo = {
   messageId?: string;
   response?: string;
   accepted?: string[];
   rejected?: string[];
-};
-
-type MailTransporter = {
-  sendMail(options: SendMailOptions): Promise<SendMailInfo>;
-  verify?(): Promise<boolean>;
-};
-
-type NodemailerModule = {
-  createTransport(config: TransportConfig): MailTransporter;
 };
 
 export type SendMailResult =
@@ -77,24 +59,8 @@ function getTransportConfig(): TransportConfig | null {
   };
 }
 
-async function getNodemailer(): Promise<NodemailerModule> {
-  const importer = new Function("moduleName", "return import(moduleName)") as (
-    moduleName: string
-  ) => Promise<unknown>;
-
-  const imported = await importer("nodemailer");
-
-  const mod = imported as unknown as
-    | NodemailerModule
-    | {
-        default?: NodemailerModule;
-      };
-
-  if ("default" in mod && mod.default) {
-    return mod.default;
-  }
-
-  return mod as NodemailerModule;
+function createTransporter(config: TransportConfig) {
+  return nodemailer.createTransport(config);
 }
 
 function normalizeMailError(error: unknown): Extract<SendMailResult, { ok: false }> {
@@ -125,25 +91,38 @@ export function isMailConfigured(): boolean {
 }
 
 export async function verifyMailConnection(): Promise<
-  { ok: true; health: EmailConfigHealth } | { ok: false; health: EmailConfigHealth; error: string; code?: string; responseCode?: number; command?: string }
+  | { ok: true; health: EmailConfigHealth; nodemailerLoaded: true }
+  | {
+      ok: false;
+      health: EmailConfigHealth;
+      error: string;
+      code?: string;
+      responseCode?: number;
+      command?: string;
+      nodemailerLoaded?: boolean;
+    }
 > {
   const health = getMailHealth();
   const config = getTransportConfig();
   const from = getSmtpFrom();
 
   if (!config || !from) {
-    return { ok: false, health, error: `SMTP incompleto. Faltando: ${health.missing.join(", ") || "configuração"}.` };
+    return {
+      ok: false,
+      health,
+      error: `SMTP incompleto. Faltando: ${health.missing.join(", ") || "configuração"}.`,
+      nodemailerLoaded: Boolean(nodemailer?.createTransport),
+    };
   }
 
   try {
-    const nodemailer = await getNodemailer();
-    const transporter = nodemailer.createTransport(config);
+    const transporter = createTransporter(config);
 
     if (typeof transporter.verify === "function") {
       await transporter.verify();
     }
 
-    return { ok: true, health };
+    return { ok: true, health, nodemailerLoaded: true };
   } catch (error: unknown) {
     const normalized = normalizeMailError(error);
     return {
@@ -153,6 +132,7 @@ export async function verifyMailConnection(): Promise<
       code: normalized.code,
       responseCode: normalized.responseCode,
       command: normalized.command,
+      nodemailerLoaded: Boolean(nodemailer?.createTransport),
     };
   }
 }
@@ -179,8 +159,7 @@ export async function sendMail(input: MailInput): Promise<SendMailResult> {
   }
 
   try {
-    const nodemailer = await getNodemailer();
-    const transporter = nodemailer.createTransport(config);
+    const transporter = createTransporter(config);
 
     console.info("[mail] Enviando e-mail", {
       to: input.to,
@@ -193,7 +172,7 @@ export async function sendMail(input: MailInput): Promise<SendMailResult> {
       from: health.from,
     });
 
-    const info = await transporter.sendMail({
+    const info = (await transporter.sendMail({
       from,
       to: input.to,
       cc: input.cc,
@@ -201,7 +180,7 @@ export async function sendMail(input: MailInput): Promise<SendMailResult> {
       subject: input.subject,
       text: input.text,
       html: input.html,
-    });
+    })) as SendMailInfo;
 
     console.info("[mail] E-mail enviado", {
       messageId: info?.messageId,

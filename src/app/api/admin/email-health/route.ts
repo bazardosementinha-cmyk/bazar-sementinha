@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getMailHealth, verifyMailConnection } from "@/lib/mail";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const gate = await requireAdmin();

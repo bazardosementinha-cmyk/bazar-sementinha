@@ -4,6 +4,7 @@ import { getAdminEmailCopyTo } from "@/lib/email-config";
 import { getMailHealth, sendMail } from "@/lib/mail";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type TestEmailBody = {
   to?: unknown;

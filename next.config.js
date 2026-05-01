@@ -2,10 +2,11 @@
 const nextConfig = {
   images: {
     remotePatterns: [
-      { protocol: 'https', hostname: '**.supabase.co' },
-      { protocol: 'https', hostname: '**' }
+      { protocol: "https", hostname: "**.supabase.co" },
+      { protocol: "https", hostname: "**" },
     ],
   },
+  serverExternalPackages: ["nodemailer"],
 };
 
 module.exports = nextConfig;
