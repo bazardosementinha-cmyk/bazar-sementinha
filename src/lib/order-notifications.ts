@@ -1,7 +1,7 @@
 import { buildTrackingAbsoluteUrl } from "@/lib/order-links";
+import { getAdminEmailCopyTo } from "@/lib/email-config";
 
 const PICKUP_FULL = "Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP";
-const BAZAR_CC = "bazardosementinha@gmail.com";
 
 export type MailOrderItem = {
   item_short_id: string;
@@ -105,7 +105,7 @@ export function buildOrderCreatedEmail(order: MailOrder, items: MailOrderItem[])
       <p>Obrigado por apoiar o Bazar do Sementinha!</p>
     </div>`;
 
-  return { subject, text, html, cc: BAZAR_CC };
+  return { subject, text, html, cc: getAdminEmailCopyTo() };
 }
 
 export function buildReminderEmail(order: MailOrder, kind: "remind_8h" | "remind_16h", items: MailOrderItem[]) {
@@ -148,7 +148,7 @@ export function buildReminderEmail(order: MailOrder, kind: "remind_8h" | "remind
       <p>Obrigado!</p>
     </div>`;
 
-  return { subject, text, html, cc: BAZAR_CC };
+  return { subject, text, html, cc: getAdminEmailCopyTo() };
 }
 
 export function buildCancellationEmail(order: MailOrder, items: MailOrderItem[]) {
@@ -185,5 +185,5 @@ export function buildCancellationEmail(order: MailOrder, items: MailOrderItem[])
       <p>Obrigado!</p>
     </div>`;
 
-  return { subject, text, html, cc: BAZAR_CC };
+  return { subject, text, html, cc: getAdminEmailCopyTo() };
 }

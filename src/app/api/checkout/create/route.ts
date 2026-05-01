@@ -3,6 +3,7 @@ import { supabaseService } from "@/lib/supabase/service";
 import { buildTrackingRelativeUrl, normalizeWhatsApp } from "@/lib/order-links";
 import { buildOrderCreatedEmail, type MailOrderItem } from "@/lib/order-notifications";
 import { sendMail } from "@/lib/mail";
+import { getAdminEmailCopyTo, getEmailNotificationsEnabled } from "@/lib/email-config";
 
 type PaymentPlan = "pix_now" | "card_pickup_deposit";
 
@@ -40,7 +41,6 @@ const PIX_KEY = "58.392.598/0001-91";
 const PIX_FAVORED = "Templo de Umbanda Caboclo Sete Flexa";
 const SUPPORT_WA = "5519992360856";
 const PICKUP_LOCATION = "TUCXA2";
-const MAIL_CC = "bazardosementinha@gmail.com";
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -425,16 +425,40 @@ export async function POST(req: Request) {
 
     const mailBody = appendTrackingLink(createdMail.text, createdMail.html, trackingUrl);
 
-    const mailResult = await sendMail({
-      to: email,
-      cc: createdMail.cc || MAIL_CC,
-      subject: createdMail.subject,
-      text: mailBody.text,
-      html: mailBody.html,
-    });
+    let emailNotification: "sent" | "disabled" | "failed" = "disabled";
+    if (getEmailNotificationsEnabled()) {
+      const mailResult = await sendMail({
+        to: email,
+        cc: createdMail.cc || getAdminEmailCopyTo(),
+        subject: createdMail.subject,
+        text: mailBody.text,
+        html: mailBody.html,
+      });
 
-    if (!mailResult.ok) {
-      console.error("[checkout/create] Falha ao enviar e-mail do pedido:", mailResult.error);
+      if (!mailResult.ok) {
+        emailNotification = "failed";
+        console.error("[checkout/create] Falha ao enviar e-mail do pedido", {
+          orderCode: code,
+          to: email,
+          error: mailResult.error,
+          code: mailResult.code,
+          responseCode: mailResult.responseCode,
+          command: mailResult.command,
+        });
+      } else {
+        emailNotification = "sent";
+        console.info("[checkout/create] E-mail do pedido enviado", {
+          orderCode: code,
+          to: email,
+          cc: createdMail.cc || getAdminEmailCopyTo(),
+          messageId: mailResult.messageId,
+          response: mailResult.response,
+        });
+      }
+    } else {
+      console.info("[checkout/create] EMAIL_NOTIFICATIONS_ENABLED=false. E-mail do pedido não enviado.", {
+        orderCode: code,
+      });
     }
 
     return NextResponse.json({
@@ -461,6 +485,9 @@ export async function POST(req: Request) {
       whatsapp_url: whatsappUrlForOrder(order.code as string, total),
       tracking: {
         url: trackingUrl,
+      },
+      notifications: {
+        email: emailNotification,
       },
     });
   } catch (err) {
