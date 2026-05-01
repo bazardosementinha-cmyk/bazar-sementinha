@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/service";
+import { sortOrderReminders } from "@/lib/order-reminders";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -94,7 +95,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ orderId: strin
   return NextResponse.json({
     order,
     items: (items ?? []) as OrderItem[],
-    reminders: (reminders ?? []) as Reminder[],
+    reminders: sortOrderReminders((reminders ?? []) as Reminder[]),
   });
 }
 

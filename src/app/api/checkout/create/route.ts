@@ -4,6 +4,7 @@ import { buildTrackingRelativeUrl, normalizeWhatsApp } from "@/lib/order-links";
 import { buildOrderCreatedEmail, type MailOrderItem } from "@/lib/order-notifications";
 import { sendMail } from "@/lib/mail";
 import { getAdminEmailCopyTo, getEmailNotificationsEnabled } from "@/lib/email-config";
+import { buildOrderReminderRows } from "@/lib/order-reminders";
 
 type PaymentPlan = "pix_now" | "card_pickup_deposit";
 
@@ -88,8 +89,8 @@ function pickPaymentPlan(value: unknown): PaymentPlan {
   return "pix_now";
 }
 
-function computeDeadlines(plan: PaymentPlan) {
-  const now = new Date();
+function computeDeadlines(plan: PaymentPlan, referenceDate: Date) {
+  const now = referenceDate;
   const hours24 = 24 * 60 * 60 * 1000;
   const days15 = 15 * 24 * 60 * 60 * 1000;
 
@@ -118,18 +119,6 @@ function whatsappUrlForOrder(code: string, total: number) {
     `Total: R$ ${formatBRL(total)}. ` +
     `Vou enviar o comprovante do Pix aqui e combinar a retirada.`;
   return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(text)}`;
-}
-
-function buildReminderRows(orderId: string, expiresAt: Date, plan: PaymentPlan) {
-  if (plan === "card_pickup_deposit") return [];
-
-  const remind8 = new Date(expiresAt.getTime() - 8 * 60 * 60 * 1000);
-  const remind16 = new Date(expiresAt.getTime() - 16 * 60 * 60 * 1000);
-
-  return [
-    { order_id: orderId, kind: "remind_8h", due_at: remind8.toISOString() },
-    { order_id: orderId, kind: "remind_16h", due_at: remind16.toISOString() },
-  ];
 }
 
 function getPublicSiteUrl(): string {
@@ -247,7 +236,8 @@ export async function POST(req: Request) {
     }
 
     const plan = pickPaymentPlan(raw.payment_plan);
-    const { expiresAt, pickupDeadlineAt, depositAmount, depositRequired } = computeDeadlines(plan);
+    const createdAt = new Date();
+    const { expiresAt, pickupDeadlineAt, depositAmount, depositRequired } = computeDeadlines(plan, createdAt);
 
     const { data: items, error: itemsErr } = await supabase
       .from("items")
@@ -332,6 +322,7 @@ export async function POST(req: Request) {
         total,
         pix_key: PIX_KEY,
         pickup_location: PICKUP_LOCATION,
+        created_at: createdAt.toISOString(),
         expires_at: expiresAt.toISOString(),
         payment_plan: plan,
         pickup_deadline_at: pickupDeadlineAt ? pickupDeadlineAt.toISOString() : null,
@@ -362,7 +353,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: getErrorMessage(oiErr) }, { status: 500 });
     }
 
-    const reminderRows = buildReminderRows(order.id as string, expiresAt, plan);
+    const reminderRows = buildOrderReminderRows(order.id as string, createdAt, plan);
     if (reminderRows.length > 0) {
       const { error: remindersErr } = await supabase.from("order_reminders").insert(reminderRows);
       if (remindersErr) {

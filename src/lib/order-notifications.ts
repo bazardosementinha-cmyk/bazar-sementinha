@@ -1,5 +1,6 @@
 import { buildTrackingAbsoluteUrl } from "@/lib/order-links";
 import { getAdminEmailCopyTo } from "@/lib/email-config";
+import { formatOrderDateTime } from "@/lib/order-dates";
 
 const PICKUP_FULL = "Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP";
 
@@ -26,10 +27,7 @@ function brMoney(value: number): string {
 }
 
 function brDateTime(value: string | null | undefined): string {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString("pt-BR");
+  return formatOrderDateTime(value);
 }
 
 function customerName(name: string | null | undefined): string {

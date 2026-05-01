@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { getAdminEmailCopyTo } from "@/lib/email-config";
 import { getMailHealth, sendMail } from "@/lib/mail";
+import { formatOrderDateTime } from "@/lib/order-dates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Informe um e-mail de destino válido no campo to." }, { status: 400 });
   }
 
-  const now = new Date().toLocaleString("pt-BR");
+  const now = formatOrderDateTime(new Date());
   const cc = getAdminEmailCopyTo();
 
   const result = await sendMail({

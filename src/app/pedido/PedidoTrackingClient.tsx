@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { formatOrderDateTimeShort } from "@/lib/order-dates";
 
 type PaymentPlan = "pix_now" | "card_pickup_deposit" | "pay_pickup_24h";
 
@@ -44,13 +45,8 @@ function formatBRL(value: number) {
 }
 
 function formatDateTime(value: string | null) {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  const formatted = formatOrderDateTimeShort(value);
+  return formatted || null;
 }
 
 function paymentPlanLabel(plan: PaymentPlan) {

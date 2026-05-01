@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import ContextHelp from "@/components/ContextHelp";
 import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
+import { getReminderLabel, sortOrderReminders } from "@/lib/order-reminders";
+import { formatOrderDateTime } from "@/lib/order-dates";
 
 type Order = {
   id: string;
@@ -40,12 +42,7 @@ type Reminder = {
 };
 
 function brDateTime(iso: string | null | undefined) {
-  if (!iso) return "-";
-  try {
-    return new Date(iso).toLocaleString("pt-BR");
-  } catch {
-    return String(iso);
-  }
+  return formatOrderDateTime(iso) || "-";
 }
 
 function brMoney(value: number) {
@@ -117,6 +114,8 @@ export default function PedidoDetalhePage() {
       (i) => `• #${i.item_short_id} — ${i.item_title} — ${brMoney(Number(i.price) || 0)}`
     );
   }, [items]);
+
+  const scheduledReminders = useMemo(() => sortOrderReminders(reminders), [reminders]);
 
   const initialMsg = useMemo(() => {
     if (!order) return "";
@@ -322,9 +321,9 @@ export default function PedidoDetalhePage() {
               </tr>
             </thead>
             <tbody>
-              {reminders.map((r) => (
+              {scheduledReminders.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="px-3 py-2">{r.kind === "remind_8h" ? "8h" : "16h"}</td>
+                  <td className="px-3 py-2">{getReminderLabel(r.kind)}</td>
                   <td className="px-3 py-2 text-xs text-slate-600">{brDateTime(r.due_at)}</td>
                   <td className="px-3 py-2 text-xs">{r.sent_at ? `Sim (${brDateTime(r.sent_at)})` : "Não"}</td>
                   <td className="px-3 py-2">
@@ -346,7 +345,7 @@ export default function PedidoDetalhePage() {
                   </td>
                 </tr>
               ))}
-              {!reminders.length ? (
+              {!scheduledReminders.length ? (
                 <tr>
                   <td className="px-3 py-6 text-center text-slate-500" colSpan={4}>
                     Nenhum lembrete encontrado.
