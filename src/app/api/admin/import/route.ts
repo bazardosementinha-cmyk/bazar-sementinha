@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { requireAdmin } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
+import { deriveOperationalFields } from "@/lib/item-taxonomy";
 
 type ImportResponse = {
   short_id: string;
@@ -49,6 +50,18 @@ export async function POST(req: Request) {
 
   const location_box = String(form.get("location_box") ?? "").trim() || null;
   const notes_internal = String(form.get("notes_internal") ?? "").trim() || null;
+  const brand = String(form.get("brand") ?? "").trim() || null;
+  const color = String(form.get("color") ?? "").trim() || null;
+  const material = String(form.get("material") ?? "").trim() || null;
+  const measurements = String(form.get("measurements") ?? "").trim() || null;
+  const condition_notes = String(form.get("condition_notes") ?? "").trim() || null;
+
+  const operational = deriveOperationalFields({
+    category,
+    title,
+    sizeType: size_type,
+    notesInternal: notes_internal,
+  });
 
   const photos = form.getAll("photos").filter((p): p is File => p instanceof File);
 
@@ -82,6 +95,17 @@ export async function POST(req: Request) {
       season,
       size_type,
       size_value,
+      subcategory: operational.subcategory,
+      item_type: operational.item_type,
+      brand,
+      color,
+      material,
+      measurements,
+      condition_notes,
+      is_fragile: operational.is_fragile,
+      requires_measurement: operational.requires_measurement,
+      label_template: operational.label_template,
+      review_status: "draft",
     })
     .select("id, short_id, status")
     .single();

@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import AdminNavPills from "@/components/AdminNavPills";
+import ContextHelp from "@/components/ContextHelp";
 import { formatBRL, statusLabel, type ItemStatus } from "@/lib/utils";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
 
 type Row = { status: ItemStatus; count: number; total: number };
 
@@ -28,6 +30,8 @@ export default function RelatorioPage() {
 
       <h1 className="mt-4 text-2xl font-bold">Relatório (transparência)</h1>
       <p className="mt-1 text-slate-600">Resumo por status e total vendido.</p>
+
+      <ContextHelp topic={ADMIN_HELP_TOPICS.relatorio} className="mt-4" />
 
       <div className="mt-4 rounded-2xl border bg-white p-4">
         <div className="text-sm text-slate-600">Total vendido</div>

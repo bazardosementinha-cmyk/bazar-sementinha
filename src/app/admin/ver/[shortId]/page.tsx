@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
 import LegendPreview from "@/components/LegendPreview";
+import ContextHelp from "@/components/ContextHelp";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,16 @@ type ItemRow = {
   size_value: string | null;
   location_box: string | null;
   notes_internal: string | null;
+  subcategory?: string | null;
+  item_type?: string | null;
+  brand?: string | null;
+  color?: string | null;
+  material?: string | null;
+  measurements?: string | null;
+  condition_notes?: string | null;
+  is_fragile?: boolean | null;
+  requires_measurement?: boolean | null;
+  label_template?: string | null;
   sold_price: number | null;
   sold_price_final: number | null;
 };
@@ -193,6 +205,8 @@ export default async function AdminVerItemPage({ params }: { params: Promise<Par
         </div>
       </div>
 
+      <ContextHelp topic={ADMIN_HELP_TOPICS.ver} className="mt-4" />
+
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border bg-white p-5">
           <div className="text-sm font-semibold">Dados do item</div>
@@ -230,8 +244,35 @@ export default async function AdminVerItemPage({ params }: { params: Promise<Par
             <dt className="text-slate-500">Local/caixa</dt>
             <dd className="font-medium">{item.location_box ?? "-"}</dd>
 
+            <dt className="text-slate-500">Subcategoria</dt>
+            <dd className="font-medium">{item.subcategory ?? "-"}</dd>
+
+            <dt className="text-slate-500">Tipo específico</dt>
+            <dd className="font-medium">{item.item_type ?? "-"}</dd>
+
+            <dt className="text-slate-500">Marca</dt>
+            <dd className="font-medium">{item.brand ?? "-"}</dd>
+
+            <dt className="text-slate-500">Cor/material</dt>
+            <dd className="font-medium">{[item.color, item.material].filter(Boolean).join(" • ") || "-"}</dd>
+
+            <dt className="text-slate-500">Medidas</dt>
+            <dd className="font-medium">{item.measurements ?? "-"}</dd>
+
+            <dt className="text-slate-500">Etiqueta sugerida</dt>
+            <dd className="font-medium">{item.label_template ?? "-"}</dd>
+
+            <dt className="text-slate-500">Cuidados</dt>
+            <dd className="font-medium">
+              {item.is_fragile ? "Frágil" : "Não frágil"}
+              {item.requires_measurement ? " • exige medida/tamanho" : ""}
+            </dd>
+
             <dt className="text-slate-500">Obs (interna)</dt>
             <dd className="font-medium">{item.notes_internal ?? "-"}</dd>
+
+            <dt className="text-slate-500">Obs. condição</dt>
+            <dd className="font-medium">{item.condition_notes ?? "-"}</dd>
 
             <dt className="text-slate-500">Preço vendido (snapshot)</dt>
             <dd className="font-medium">R$ {fmtMoneyBR(item.sold_price)}</dd>

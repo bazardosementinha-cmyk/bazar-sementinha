@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import ContextHelp from "@/components/ContextHelp";
 import LegendPreview from "@/components/LegendPreview";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
+import { getLabelRecommendation } from "@/lib/item-taxonomy";
 
 type Item = {
   short_id: string;
@@ -21,6 +24,16 @@ type Item = {
   size_value: string | null;
   location_box: string | null;
   notes_internal: string | null;
+  subcategory?: string | null;
+  item_type?: string | null;
+  brand?: string | null;
+  color?: string | null;
+  material?: string | null;
+  measurements?: string | null;
+  condition_notes?: string | null;
+  is_fragile?: boolean | null;
+  requires_measurement?: boolean | null;
+  label_template?: string | null;
 };
 
 function getErrorMessage(err: unknown): string {
@@ -125,6 +138,16 @@ export default function AdminEditarPage() {
   const [locationBox, setLocationBox] = useState("");
   const [notesInternal, setNotesInternal] = useState("");
 
+  const [subcategory, setSubcategory] = useState("");
+  const [itemType, setItemType] = useState("");
+  const [brand, setBrand] = useState("");
+  const [color, setColor] = useState("");
+  const [material, setMaterial] = useState("");
+  const [measurements, setMeasurements] = useState("");
+  const [conditionNotes, setConditionNotes] = useState("");
+  const [isFragile, setIsFragile] = useState(false);
+  const [requiresMeasurement, setRequiresMeasurement] = useState(false);
+
   useEffect(() => {
     let alive = true;
     async function load() {
@@ -158,6 +181,16 @@ export default function AdminEditarPage() {
 
         setLocationBox(it.location_box ?? "");
         setNotesInternal(it.notes_internal ?? "");
+
+        setSubcategory(it.subcategory ?? "");
+        setItemType(it.item_type ?? "");
+        setBrand(it.brand ?? "");
+        setColor(it.color ?? "");
+        setMaterial(it.material ?? "");
+        setMeasurements(it.measurements ?? "");
+        setConditionNotes(it.condition_notes ?? "");
+        setIsFragile(Boolean(it.is_fragile));
+        setRequiresMeasurement(Boolean(it.requires_measurement));
       } catch (e: unknown) {
         if (!alive) return;
         setError(getErrorMessage(e));
@@ -186,6 +219,7 @@ export default function AdminEditarPage() {
   }, [title, condition, price, priceFrom, description, category]);
 
   const hashtags = useMemo(() => buildHashtags(category || "Outros"), [category]);
+  const labelRecommendation = getLabelRecommendation({ category, sizeType, title, notesInternal });
 
   async function onSave() {
     setSaving(true);
@@ -210,6 +244,16 @@ export default function AdminEditarPage() {
         size_value: sizeValue,
         location_box: locationBox,
         notes_internal: notesInternal,
+        subcategory,
+        item_type: itemType,
+        brand,
+        color,
+        material,
+        measurements,
+        condition_notes: conditionNotes,
+        is_fragile: isFragile,
+        requires_measurement: requiresMeasurement,
+        label_template: labelRecommendation.code,
       };
 
       const resp = await fetch("/api/admin/update-item", {
@@ -251,6 +295,8 @@ export default function AdminEditarPage() {
           ) : null}
         </div>
       </div>
+
+      <ContextHelp topic={ADMIN_HELP_TOPICS.editar} className="mt-4" />
 
       {loading ? <div className="mt-6 text-slate-600">Carregando...</div> : null}
 
@@ -352,7 +398,7 @@ export default function AdminEditarPage() {
               </div>
 
               <div className="rounded-2xl border bg-slate-50 p-4">
-                <div className="font-semibold mb-2">Facetas para roupas</div>
+                <div className="font-semibold mb-2">Classificação e tamanho</div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
                     <label className="text-sm font-medium">Sexo</label>
@@ -398,6 +444,67 @@ export default function AdminEditarPage() {
                     <input value={sizeValue} onChange={(e) => setSizeValue(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Ex.: M / 38 / 25cm" />
                   </div>
                 </div>
+              </div>
+
+
+
+              <div className="rounded-2xl border bg-slate-50 p-4">
+                <div className="font-semibold mb-2">Dados operacionais</div>
+                <p className="mb-3 text-sm text-slate-600">
+                  Use para diferenciar itens diversos, sugerir etiqueta, controlar fragilidade e facilitar separação.
+                </p>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="text-sm font-medium">Subcategoria</label>
+                    <input value={subcategory} onChange={(e) => setSubcategory(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Ex.: Feminino / Casa" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Tipo específico</label>
+                    <input value={itemType} onChange={(e) => setItemType(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Ex.: Vestido / Travessa" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Marca</label>
+                    <input value={brand} onChange={(e) => setBrand(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Ex.: Disney" />
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="text-sm font-medium">Cor principal</label>
+                    <input value={color} onChange={(e) => setColor(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Ex.: Azul" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Material</label>
+                    <input value={material} onChange={(e) => setMaterial(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Ex.: vidro / algodão" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Medidas</label>
+                    <input value={measurements} onChange={(e) => setMeasurements(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Ex.: 20 x 15 cm" />
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="text-sm font-medium">Observações de condição</label>
+                  <input value={conditionNotes} onChange={(e) => setConditionNotes(e.target.value)} className="mt-1 w-full rounded-xl border px-3 py-2" placeholder="Ex.: pequeno risco na lateral" />
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-3 text-sm">
+                  <label className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-2">
+                    <input type="checkbox" checked={isFragile} onChange={(e) => setIsFragile(e.target.checked)} />
+                    Item frágil
+                  </label>
+                  <label className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-2">
+                    <input type="checkbox" checked={requiresMeasurement} onChange={(e) => setRequiresMeasurement(e.target.checked)} />
+                    Exige medida/tamanho
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                <div className="font-bold">Sugestão de etiqueta: {labelRecommendation.title}</div>
+                <p className="mt-1">{labelRecommendation.description}</p>
+                <p className="mt-1 text-emerald-800">{labelRecommendation.printHint}</p>
               </div>
 
               <div>

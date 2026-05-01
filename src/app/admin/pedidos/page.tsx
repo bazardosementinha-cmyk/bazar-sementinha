@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AdminNavPills from "@/components/AdminNavPills";
+import ContextHelp from "@/components/ContextHelp";
 import { formatBRL } from "@/lib/utils";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
 
 type OrderStatus = "reserved" | "paid" | "delivered" | "canceled";
 
@@ -156,6 +158,8 @@ export default function AdminPedidosPage() {
       <p className="mt-2 text-slate-600">
         Reservas com expiração (24h) + lembretes (assistido) + baixa (pago/entregue).
       </p>
+
+      <ContextHelp topic={ADMIN_HELP_TOPICS.pedidos} className="mt-4" />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {filters.map((f) => (

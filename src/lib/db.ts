@@ -15,6 +15,25 @@ export type Item = {
   status: ItemStatus;
   source: string | null;
   source_url: string | null;
+  location_box?: string | null;
+  notes_internal?: string | null;
+  gender?: string | null;
+  age_group?: string | null;
+  season?: string | null;
+  size_type?: string | null;
+  size_value?: string | null;
+  subcategory?: string | null;
+  item_type?: string | null;
+  brand?: string | null;
+  color?: string | null;
+  material?: string | null;
+  measurements?: string | null;
+  condition_notes?: string | null;
+  is_fragile?: boolean | null;
+  requires_measurement?: boolean | null;
+  label_template?: string | null;
+  review_status?: string | null;
+  attributes_json?: Record<string, unknown> | null;
   created_at: string;
 };
 

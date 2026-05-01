@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import ContextHelp from "@/components/ContextHelp";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
 import { formatBRL, statusLabel, type ItemStatus } from "@/lib/utils";
 
 type ReservationLock = {
@@ -22,6 +24,9 @@ type ItemRow = {
   price_from: number | null;
   status: ItemStatus;
   created_at: string;
+  location_box?: string | null;
+  label_template?: string | null;
+  is_fragile?: boolean | null;
   reservation_lock?: ReservationLock;
 };
 
@@ -222,6 +227,7 @@ export default function AdminItensPage() {
   const isItens = pathname?.startsWith("/admin/itens");
   const isPedidos = pathname?.startsWith("/admin/pedidos");
   const isRelatorio = pathname?.startsWith("/admin/relatorio");
+  const isManual = pathname?.startsWith("/admin/manual");
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -235,9 +241,14 @@ export default function AdminItensPage() {
         <Link href="/admin/relatorio" className={pillClass(!!isRelatorio)}>
           Relatório
         </Link>
+        <Link href="/admin/manual" className={pillClass(!!isManual)}>
+          Manual
+        </Link>
       </div>
 
       <p className="mt-2 text-slate-600">Gerencie status (Disponível / Reservado / Vendido).</p>
+
+      <ContextHelp topic={ADMIN_HELP_TOPICS.itens} className="mt-4" />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link href="/admin/importar" className={pillClass(false)}>
@@ -261,6 +272,11 @@ export default function AdminItensPage() {
                 <div className="font-mono text-xs text-slate-500">#{it.short_id}</div>
                 <div className="font-semibold">{it.title}</div>
                 <div className="text-xs text-slate-500">{it.condition}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {it.location_box ? `Local: ${it.location_box}` : "Sem local informado"}
+                  {it.label_template ? ` • Etiqueta ${it.label_template}` : ""}
+                  {it.is_fragile ? " • Frágil" : ""}
+                </div>
               </div>
               <div className="text-right">
                 <div className="text-xs text-slate-500">{it.category}</div>
@@ -303,6 +319,11 @@ export default function AdminItensPage() {
                 <td className="px-3 py-2">
                   <div className="font-medium">{it.title}</div>
                   <div className="text-xs text-slate-500">{it.condition}</div>
+                  <div className="text-xs text-slate-500">
+                    {it.location_box ? `Local: ${it.location_box}` : "Sem local informado"}
+                    {it.label_template ? ` • Etiqueta ${it.label_template}` : ""}
+                    {it.is_fragile ? " • Frágil" : ""}
+                  </div>
                 </td>
                 <td className="px-3 py-2">{it.category}</td>
                 <td className="px-3 py-2">
