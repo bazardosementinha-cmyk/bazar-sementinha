@@ -24,6 +24,9 @@ type ItemRow = {
   price_from: number | null;
   status: ItemStatus;
   created_at: string;
+  location_box?: string | null;
+  label_template?: string | null;
+  is_fragile?: boolean | null;
   reservation_lock?: ReservationLock;
 };
 
@@ -269,6 +272,11 @@ export default function AdminItensPage() {
                 <div className="font-mono text-xs text-slate-500">#{it.short_id}</div>
                 <div className="font-semibold">{it.title}</div>
                 <div className="text-xs text-slate-500">{it.condition}</div>
+                <div className="mt-1 text-xs text-slate-500">
+                  {it.location_box ? `Local: ${it.location_box}` : "Sem local informado"}
+                  {it.label_template ? ` • Etiqueta ${it.label_template}` : ""}
+                  {it.is_fragile ? " • Frágil" : ""}
+                </div>
               </div>
               <div className="text-right">
                 <div className="text-xs text-slate-500">{it.category}</div>
@@ -311,6 +319,11 @@ export default function AdminItensPage() {
                 <td className="px-3 py-2">
                   <div className="font-medium">{it.title}</div>
                   <div className="text-xs text-slate-500">{it.condition}</div>
+                  <div className="text-xs text-slate-500">
+                    {it.location_box ? `Local: ${it.location_box}` : "Sem local informado"}
+                    {it.label_template ? ` • Etiqueta ${it.label_template}` : ""}
+                    {it.is_fragile ? " • Frágil" : ""}
+                  </div>
                 </td>
                 <td className="px-3 py-2">{it.category}</td>
                 <td className="px-3 py-2">

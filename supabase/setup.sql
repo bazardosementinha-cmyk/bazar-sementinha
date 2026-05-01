@@ -32,6 +32,30 @@ create table if not exists public.items (
   source_url text,
   location_box text,
   notes_internal text,
+
+  -- Classificação operacional e etiqueta
+  gender text,
+  age_group text,
+  season text,
+  size_type text,
+  size_value text,
+  subcategory text,
+  item_type text,
+  brand text,
+  color text,
+  material text,
+  measurements text,
+  condition_notes text,
+  is_fragile boolean not null default false,
+  requires_measurement boolean not null default false,
+  label_template text not null default 'M',
+  review_status text not null default 'draft',
+  attributes_json jsonb not null default '{}'::jsonb,
+  qr_printed_at timestamptz,
+  tagged_at timestamptz,
+  reviewed_at timestamptz,
+  published_at timestamptz,
+
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -39,6 +63,10 @@ create table if not exists public.items (
 
 create index if not exists idx_items_status on public.items(status);
 create index if not exists idx_items_created_at on public.items(created_at desc);
+create index if not exists idx_items_category on public.items(category);
+create index if not exists idx_items_item_type on public.items(item_type);
+create index if not exists idx_items_label_template on public.items(label_template);
+create index if not exists idx_items_review_status on public.items(review_status);
 
 create table if not exists public.item_photos (
   id bigserial primary key,

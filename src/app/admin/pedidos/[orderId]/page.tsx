@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import ContextHelp from "@/components/ContextHelp";
+import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
 
 type Order = {
   id: string;
@@ -228,6 +230,8 @@ export default function PedidoDetalhePage() {
           <button onClick={() => void load()} className="rounded-xl bg-slate-900 px-4 py-2 font-semibold text-white hover:bg-black">Atualizar</button>
         </div>
       </div>
+
+      <ContextHelp topic={ADMIN_HELP_TOPICS.pedidoDetalhe} className="mt-4" />
 
       {error ? <div className="mt-4 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</div> : null}
       {notice ? <div className="mt-4 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</div> : null}

@@ -36,6 +36,15 @@ type AiSuggestion = Partial<{
   size_value: string;
   location_box: string | null;
   notes_internal: string | null;
+  subcategory: string | null;
+  item_type: string | null;
+  brand: string | null;
+  color: string | null;
+  material: string | null;
+  measurements: string | null;
+  condition_notes: string | null;
+  is_fragile: boolean | null;
+  requires_measurement: boolean | null;
 }>;
 
 class GeminiHttpError extends Error {
@@ -266,7 +275,16 @@ async function repairToValidJson(apiKey: string, model: string, badText: string)
     '  "size_type": "livre|roupa_letras|roupa_numero|calcado_br|infantil_idade|medidas_cm|null",',
     '  "size_value": "string|null",',
     '  "location_box": "string|null",',
-    '  "notes_internal": "string|null"',
+    '  "notes_internal": "string|null",',
+    '  "subcategory": "string|null",',
+    '  "item_type": "string|null",',
+    '  "brand": "string|null",',
+    '  "color": "string|null",',
+    '  "material": "string|null",',
+    '  "measurements": "string|null",',
+    '  "condition_notes": "string|null",',
+    '  "is_fragile": "boolean|null",',
+    '  "requires_measurement": "boolean|null"',
     "}",
     "",
     "Texto:",
@@ -332,6 +350,10 @@ export async function POST(req: Request) {
     "- size_type: livre | roupa_letras | roupa_numero | calcado_br | infantil_idade | medidas_cm.",
     "- size_value: exemplo: M, 38, 25cm, 10 anos.",
     "- price/price_from: se houver etiqueta/valor, use. Senão estime conservador.",
+    "- subcategory/item_type: ajude a diferenciar itens variados, como vestido, tênis, brinco, travessa, brinquedo, artesanato.",
+    "- brand/color/material/measurements/condition_notes: preencha quando a foto permitir inferir com segurança.",
+    "- is_fragile: true para vidro, porcelana, cerâmica, louças e itens quebráveis.",
+    "- requires_measurement: true para roupas, calçados, casa/decoração, kits e itens cujo tamanho influencia a compra.",
     "",
     `Categorias conhecidas: ${knownCategories.length ? knownCategories.join(", ") : "Roupas, Calçados, Acessórios, Outros"}.`,
     "",
@@ -351,7 +373,16 @@ export async function POST(req: Request) {
     '  "size_type": "livre",',
     '  "size_value": "string",',
     '  "location_box": null,',
-    '  "notes_internal": null',
+    '  "notes_internal": null,',
+    '  "subcategory": null,',
+    '  "item_type": null,',
+    '  "brand": null,',
+    '  "color": null,',
+    '  "material": null,',
+    '  "measurements": null,',
+    '  "condition_notes": null,',
+    '  "is_fragile": null,',
+    '  "requires_measurement": null',
     "}",
   ].join("\n");
 

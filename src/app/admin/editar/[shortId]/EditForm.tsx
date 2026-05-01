@@ -22,6 +22,16 @@ type ItemRow = {
   size_value: string | null;
   location_box: string | null;
   notes_internal: string | null;
+  subcategory?: string | null;
+  item_type?: string | null;
+  brand?: string | null;
+  color?: string | null;
+  material?: string | null;
+  measurements?: string | null;
+  condition_notes?: string | null;
+  is_fragile?: boolean | null;
+  requires_measurement?: boolean | null;
+  label_template?: string | null;
 };
 
 function fmtMoneyBR(v: number | null | undefined): string {
@@ -57,6 +67,16 @@ export default function EditForm({ initialItem }: { initialItem: ItemRow }) {
   const [locationBox, setLocationBox] = useState(initialItem.location_box ?? "");
   const [notesInternal, setNotesInternal] = useState(initialItem.notes_internal ?? "");
 
+  const [subcategory, setSubcategory] = useState(initialItem.subcategory ?? "");
+  const [itemType, setItemType] = useState(initialItem.item_type ?? "");
+  const [brand, setBrand] = useState(initialItem.brand ?? "");
+  const [color, setColor] = useState(initialItem.color ?? "");
+  const [material, setMaterial] = useState(initialItem.material ?? "");
+  const [measurements, setMeasurements] = useState(initialItem.measurements ?? "");
+  const [conditionNotes, setConditionNotes] = useState(initialItem.condition_notes ?? "");
+  const [isFragile, setIsFragile] = useState(Boolean(initialItem.is_fragile));
+  const [requiresMeasurement, setRequiresMeasurement] = useState(Boolean(initialItem.requires_measurement));
+
   const descLen = useMemo(() => description.length, [description]);
   const descColor = descLen > 320 ? "text-red-600" : descLen > 280 ? "text-amber-600" : "text-slate-500";
   const labelRecommendation = getLabelRecommendation({ category, sizeType, title, notesInternal });
@@ -82,6 +102,16 @@ export default function EditForm({ initialItem }: { initialItem: ItemRow }) {
         size_value: sizeValue || null,
         location_box: locationBox || null,
         notes_internal: notesInternal || null,
+        subcategory: subcategory || null,
+        item_type: itemType || null,
+        brand: brand || null,
+        color: color || null,
+        material: material || null,
+        measurements: measurements || null,
+        condition_notes: conditionNotes || null,
+        is_fragile: isFragile,
+        requires_measurement: requiresMeasurement,
+        label_template: labelRecommendation.code,
       };
 
       const resp = await fetch("/api/admin/update-item", {
@@ -288,6 +318,113 @@ export default function EditForm({ initialItem }: { initialItem: ItemRow }) {
               disabled={!canEdit}
             />
           </div>
+        </div>
+      </div>
+
+
+
+      <div className="mt-4 rounded-2xl border bg-slate-50 p-4">
+        <div className="font-semibold mb-2">Dados operacionais do item</div>
+        <p className="mb-3 text-sm text-slate-600">
+          Estes campos ajudam a equipe a encontrar, etiquetar e descrever corretamente itens muito diferentes entre si.
+        </p>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label className="text-sm font-medium">Subcategoria</label>
+            <input
+              value={subcategory}
+              onChange={(e) => setSubcategory(e.target.value)}
+              className="mt-1 w-full rounded-xl border px-3 py-2"
+              placeholder="Ex.: Feminino / Casa"
+              disabled={!canEdit}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Tipo específico</label>
+            <input
+              value={itemType}
+              onChange={(e) => setItemType(e.target.value)}
+              className="mt-1 w-full rounded-xl border px-3 py-2"
+              placeholder="Ex.: Vestido / Travessa"
+              disabled={!canEdit}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Marca</label>
+            <input
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              className="mt-1 w-full rounded-xl border px-3 py-2"
+              placeholder="Ex.: Disney"
+              disabled={!canEdit}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div>
+            <label className="text-sm font-medium">Cor principal</label>
+            <input
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="mt-1 w-full rounded-xl border px-3 py-2"
+              placeholder="Ex.: Azul"
+              disabled={!canEdit}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Material</label>
+            <input
+              value={material}
+              onChange={(e) => setMaterial(e.target.value)}
+              className="mt-1 w-full rounded-xl border px-3 py-2"
+              placeholder="Ex.: algodão / vidro"
+              disabled={!canEdit}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Medidas</label>
+            <input
+              value={measurements}
+              onChange={(e) => setMeasurements(e.target.value)}
+              className="mt-1 w-full rounded-xl border px-3 py-2"
+              placeholder="Ex.: 20 x 15 cm"
+              disabled={!canEdit}
+            />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="text-sm font-medium">Observações de condição</label>
+          <input
+            value={conditionNotes}
+            onChange={(e) => setConditionNotes(e.target.value)}
+            className="mt-1 w-full rounded-xl border px-3 py-2"
+            placeholder="Ex.: pequeno risco na lateral"
+            disabled={!canEdit}
+          />
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-3 text-sm">
+          <label className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-2">
+            <input
+              type="checkbox"
+              checked={isFragile}
+              onChange={(e) => setIsFragile(e.target.checked)}
+              disabled={!canEdit}
+            />
+            Item frágil
+          </label>
+          <label className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-2">
+            <input
+              type="checkbox"
+              checked={requiresMeasurement}
+              onChange={(e) => setRequiresMeasurement(e.target.checked)}
+              disabled={!canEdit}
+            />
+            Exige medida/tamanho
+          </label>
         </div>
       </div>
 

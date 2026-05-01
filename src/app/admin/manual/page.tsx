@@ -32,6 +32,44 @@ export default function AdminManualPage() {
         <AdminProcessFlow />
       </div>
 
+      <section id="processo-publico" className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
+        <h2 className="text-xl font-bold">Processo visto pelo comprador</h2>
+        <p className="mt-2 text-sm leading-6 text-emerald-900">
+          Na loja pública, o processo não deve parecer burocrático. Ele deve transmitir confiança:
+          o comprador escolhe um item único, reserva pelo site, envia o comprovante do Pix e a equipe separa pelo código.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          {["Escolher", "Reservar", "Enviar comprovante", "Retirar"].map((step, index) => (
+            <div key={step} className="rounded-2xl bg-white/80 p-4">
+              <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">Passo {index + 1}</div>
+              <div className="mt-1 font-bold">{step}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="deep-dive" className="mt-6 rounded-2xl border bg-white p-5">
+        <h2 className="text-xl font-bold">Como aplicar Deep Dive no Bazar</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Para o cliente, não basta listar características. A descrição deve explicar por que aquele item facilita a vida,
+          economiza dinheiro, evita desperdício, gera confiança e ainda transforma uma compra simples em apoio ao Sementinha.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="font-semibold">Característica</div>
+            <p className="mt-1 text-sm text-slate-600">Ex.: peça em bom estado, com fotos e código interno.</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="font-semibold">Por que existe?</div>
+            <p className="mt-1 text-sm text-slate-600">Para o comprador saber exatamente o que está reservando.</p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="font-semibold">Por que a pessoa quer?</div>
+            <p className="mt-1 text-sm text-slate-600">Para economizar, comprar com segurança e participar de uma causa.</p>
+          </div>
+        </div>
+      </section>
+
       <section id="cadastro" className="mt-6 rounded-2xl border bg-white p-5">
         <h2 className="text-xl font-bold">1. Cadastro do item</h2>
         <p className="mt-2 text-sm text-slate-600">
@@ -159,6 +197,27 @@ export default function AdminManualPage() {
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+      <section id="campos-operacionais" className="mt-6 rounded-2xl border bg-white p-5">
+        <h2 className="text-xl font-bold">Campos operacionais no banco</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          A estrutura nova permite registrar subcategoria, tipo específico, marca, cor, material, medidas,
+          fragilidade, necessidade de medição e modelo de etiqueta recomendado.
+        </p>
+        <div className="mt-4 grid gap-2 text-sm md:grid-cols-2">
+          {[
+            "subcategory / item_type",
+            "brand / color / material",
+            "measurements / condition_notes",
+            "is_fragile / requires_measurement",
+            "label_template / review_status",
+            "qr_printed_at / tagged_at / reviewed_at / published_at",
+          ].map((field) => (
+            <div key={field} className="rounded-xl bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700">
+              {field}
+            </div>
+          ))}
         </div>
       </section>
     </div>

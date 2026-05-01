@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { supabaseServer } from "@/lib/supabase/server";
+import { deriveOperationalFields } from "@/lib/item-taxonomy";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,16 @@ type UpdatePayload = {
   size_value?: string;
   location_box?: string;
   notes_internal?: string;
+  subcategory?: string | null;
+  item_type?: string | null;
+  brand?: string | null;
+  color?: string | null;
+  material?: string | null;
+  measurements?: string | null;
+  condition_notes?: string | null;
+  is_fragile?: boolean | null;
+  requires_measurement?: boolean | null;
+  label_template?: string | null;
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -28,6 +39,16 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 function clamp(s: string, max: number) {
   const t = s.trim().replace(/\s+/g, " ");
   return t.length <= max ? t : t.slice(0, max - 1).trimEnd() + "...";
+}
+
+function parseBoolean(input: unknown): boolean | null {
+  if (typeof input === "boolean") return input;
+  if (typeof input === "string") {
+    const value = input.trim().toLowerCase();
+    if (["true", "1", "sim", "yes"].includes(value)) return true;
+    if (["false", "0", "nao", "não", "no"].includes(value)) return false;
+  }
+  return null;
 }
 
 function parseMoneyBR(input: unknown): number | null {
@@ -96,7 +117,30 @@ export async function POST(req: Request) {
   if (typeof p.size_value === "string") update.size_value = clamp(p.size_value, 40);
 
   if (typeof p.location_box === "string") update.location_box = clamp(p.location_box, 40);
-  if (typeof p.notes_internal === "string") update.notes_internal = clamp(p.notes_internal, 140);
+  if (typeof p.notes_internal === "string") update.notes_internal = clamp(p.notes_internal, 300);
+
+  const derived = deriveOperationalFields({
+    category: typeof p.category === "string" ? p.category : undefined,
+    title: typeof p.title === "string" ? p.title : undefined,
+    sizeType: typeof p.size_type === "string" ? p.size_type : undefined,
+    notesInternal: typeof p.notes_internal === "string" ? p.notes_internal : undefined,
+  });
+
+  update.subcategory = typeof p.subcategory === "string" ? clamp(p.subcategory, 80) : derived.subcategory;
+  update.item_type = typeof p.item_type === "string" ? clamp(p.item_type, 80) : derived.item_type;
+  if (typeof p.brand === "string") update.brand = clamp(p.brand, 80);
+  if (typeof p.color === "string") update.color = clamp(p.color, 80);
+  if (typeof p.material === "string") update.material = clamp(p.material, 80);
+  if (typeof p.measurements === "string") update.measurements = clamp(p.measurements, 120);
+  if (typeof p.condition_notes === "string") update.condition_notes = clamp(p.condition_notes, 300);
+
+  const isFragile = parseBoolean(p.is_fragile);
+  const requiresMeasurement = parseBoolean(p.requires_measurement);
+  update.is_fragile = isFragile ?? derived.is_fragile;
+  update.requires_measurement = requiresMeasurement ?? derived.requires_measurement;
+  update.label_template = typeof p.label_template === "string" && p.label_template.trim()
+    ? clamp(p.label_template, 24)
+    : derived.label_template;
 
   const { error: updErr } = await supabase.from("items").update(update).eq("id", item.id);
   if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });

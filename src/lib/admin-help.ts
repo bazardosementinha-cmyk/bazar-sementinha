@@ -7,6 +7,19 @@ export type HelpTopic = {
 };
 
 export const ADMIN_HELP_TOPICS = {
+  inicio: {
+    title: "Visão geral do processo",
+    description:
+      "O Bazar Online funciona melhor quando todos seguem o mesmo padrão: cadastrar, revisar, etiquetar, guardar, publicar, vender, separar e entregar.",
+    bullets: [
+      "A identificação correta evita troca de itens, perda no estoque e dúvidas na retirada.",
+      "Cada item deve ter código curto, fotos, categoria, preço, localização física e QR/etiqueta.",
+      "O manual do processo fica disponível para consulta pelos voluntários e administradores.",
+      "Use a lista de itens como painel de controle: rascunho, disponível, reservado, vendido ou arquivado.",
+    ],
+    ctaHref: "/admin/manual",
+    ctaLabel: "Abrir manual",
+  },
   importar: {
     title: "Antes de cadastrar",
     description:
@@ -46,6 +59,19 @@ export const ADMIN_HELP_TOPICS = {
     ctaHref: "/admin/manual#revisao",
     ctaLabel: "Ver padrão de revisão",
   },
+  ver: {
+    title: "Conferência final do item",
+    description:
+      "Esta tela serve para validar se o cadastro digital bate com o produto físico antes de publicar ou movimentar o status.",
+    bullets: [
+      "Confira título, fotos, condição, preço e localização física.",
+      "Compare a descrição com o item real para evitar promessa exagerada ou informação faltando.",
+      "Antes de publicar, confirme se o QR/etiqueta já foi gerado e fixado corretamente.",
+      "Se houver dúvida, volte para editar enquanto o item ainda estiver em revisão.",
+    ],
+    ctaHref: "/admin/manual#revisao",
+    ctaLabel: "Ver checklist",
+  },
   qr: {
     title: "Etiqueta e QR Code",
     description:
@@ -58,6 +84,45 @@ export const ADMIN_HELP_TOPICS = {
     ],
     ctaHref: "/admin/manual#etiquetas",
     ctaLabel: "Ver modelos de etiqueta",
+  },
+  pedidos: {
+    title: "Pedidos e reservas",
+    description:
+      "Pedidos conectam o cliente ao estoque físico. O objetivo é proteger o item enquanto o pagamento é confirmado e separar sem erro.",
+    bullets: [
+      "Reserva ativa não deve liberar o item para outro comprador antes do prazo/cancelamento.",
+      "Use o código do pedido e o código do item para localizar rapidamente na caixa/local informado.",
+      "Após pagamento confirmado, mantenha o registro atualizado para transparência.",
+      "Cancelamentos devem devolver o item ao fluxo correto somente quando a reserva realmente expirar.",
+    ],
+    ctaHref: "/admin/manual#venda",
+    ctaLabel: "Ver fluxo de venda",
+  },
+  pedidoDetalhe: {
+    title: "Separação e entrega",
+    description:
+      "A página do pedido é o checklist de atendimento: confirmar pagamento, separar itens pelo código e registrar a conclusão.",
+    bullets: [
+      "Sempre confira os itens do pedido contra os códigos físicos antes da retirada.",
+      "Priorize o comprovante do Pix para confirmar a reserva e evitar retrabalho.",
+      "Use WhatsApp para alinhar retirada e orientar o comprador quando necessário.",
+      "Finalize como entregue/vendido somente depois da conferência completa.",
+    ],
+    ctaHref: "/admin/manual#separacao",
+    ctaLabel: "Ver separação",
+  },
+  relatorio: {
+    title: "Transparência do Bazar",
+    description:
+      "O relatório mostra o resultado do processo: itens vendidos, valores arrecadados e acompanhamento por status.",
+    bullets: [
+      "Status corretos mantêm o relatório confiável para prestação de contas.",
+      "Itens vendidos devem refletir o valor efetivamente confirmado.",
+      "Use os dados para ajustar categorias, preços e prioridades de cadastro.",
+      "Em eventos e campanhas, o relatório ajuda a demonstrar impacto social.",
+    ],
+    ctaHref: "/admin/manual#transparencia",
+    ctaLabel: "Ver boas práticas",
   },
   manual: {
     title: "Processo oficial do Bazar Online",

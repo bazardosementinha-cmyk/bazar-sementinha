@@ -14,6 +14,9 @@ type ItemRow = {
   price_from: number | null;
   status: string;
   created_at: string;
+  location_box: string | null;
+  label_template: string | null;
+  is_fragile: boolean | null;
 };
 
 type OrderItemRow = {
@@ -69,7 +72,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("items")
-    .select("id,short_id,title,category,condition,price,price_from,status,created_at")
+    .select("id,short_id,title,category,condition,price,price_from,status,created_at,location_box,label_template,is_fragile")
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

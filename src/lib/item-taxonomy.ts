@@ -149,3 +149,55 @@ export function getTaxonomyGroup(category: string | null | undefined): TaxonomyG
 export function getKnownCategories(): string[] {
   return TAXONOMY_GROUPS.map((group) => group.category);
 }
+
+
+export type ItemOperationalFields = {
+  subcategory: string | null;
+  item_type: string | null;
+  is_fragile: boolean;
+  requires_measurement: boolean;
+  label_template: LabelTemplateCode;
+};
+
+export function deriveOperationalFields(input: {
+  category?: string | null;
+  title?: string | null;
+  sizeType?: string | null;
+  notesInternal?: string | null;
+}): ItemOperationalFields {
+  const category = input.category ?? "Outros";
+  const title = input.title ?? "";
+  const haystack = normalizeText(`${category} ${title} ${input.sizeType ?? ""} ${input.notesInternal ?? ""}`);
+  const label = getLabelRecommendation(input);
+
+  let subcategory: string | null = null;
+  let itemType: string | null = null;
+
+  if (/vestido/.test(haystack)) itemType = "Vestido";
+  else if (/blusa|camisa|camiseta/.test(haystack)) itemType = "Blusa/Camisa";
+  else if (/calca/.test(haystack)) itemType = "Calça";
+  else if (/tenis/.test(haystack)) itemType = "Tênis";
+  else if (/sapato/.test(haystack)) itemType = "Sapato";
+  else if (/sandalia/.test(haystack)) itemType = "Sandália";
+  else if (/brinco/.test(haystack)) itemType = "Brinco";
+  else if (/colar/.test(haystack)) itemType = "Colar";
+  else if (/pelucia/.test(haystack)) itemType = "Pelúcia";
+  else if (/travessa|copo|vaso|louca|porcelana|vidro/.test(haystack)) itemType = "Utensílio/Decoração";
+
+  if (/feminino|mulher/.test(haystack)) subcategory = "Feminino";
+  else if (/masculino|homem/.test(haystack)) subcategory = "Masculino";
+  else if (/infantil|crianca|bebe/.test(haystack)) subcategory = "Infantil";
+  else if (/casa|cozinha|decoracao/.test(haystack)) subcategory = "Casa";
+
+  const isFragile = label.code === "FRAGIL" || /fragil|vidro|porcelana|ceramica|louca/.test(haystack);
+  const requiresMeasurement =
+    /roupa|calcado|sapato|tenis|sandalia|bota|medida|cm|casa|travessa|quadro|vaso|kit|conjunto/.test(haystack);
+
+  return {
+    subcategory,
+    item_type: itemType,
+    is_fragile: isFragile,
+    requires_measurement: requiresMeasurement,
+    label_template: label.code,
+  };
+}

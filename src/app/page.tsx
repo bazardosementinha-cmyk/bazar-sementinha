@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Shell, TopBar } from "@/components/Shell";
+import PublicHowItWorks from "@/components/PublicHowItWorks";
+import PublicImpactBanner from "@/components/PublicImpactBanner";
 import { ItemCard } from "@/components/Card";
 import { getPublicItems, getItemPhotos, signedUrlsForPaths } from "@/lib/db";
 import { supabasePublic } from "@/lib/supabase/public";
@@ -58,6 +60,9 @@ export default async function Page({
         <p className="mt-1 text-slate-600">
           Escolha itens e reserve pelo site. Atendimento e confirmação pelo WhatsApp.
         </p>
+
+        <PublicImpactBanner />
+        <PublicHowItWorks />
 
         {/* Category filters */}
         <div className="mt-4 flex flex-wrap gap-2">
