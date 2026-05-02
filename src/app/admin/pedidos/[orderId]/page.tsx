@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import ContextHelp from "@/components/ContextHelp";
 import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
+import { getReminderLabel, sortOrderReminders } from "@/lib/order-reminders";
+import { formatOrderDateTime } from "@/lib/order-dates";
 
 type Order = {
   id: string;
@@ -22,6 +24,12 @@ type Order = {
   paid_at: string | null;
   delivered_at: string | null;
   cancelled_at: string | null;
+  payment_status?: string | null;
+  payment_proof_path?: string | null;
+  payment_proof_signed_url?: string | null;
+  payment_proof_uploaded_at?: string | null;
+  payment_proof_mime_type?: string | null;
+  payment_proof_size_bytes?: number | null;
 };
 
 type OrderItem = {
@@ -40,12 +48,7 @@ type Reminder = {
 };
 
 function brDateTime(iso: string | null | undefined) {
-  if (!iso) return "-";
-  try {
-    return new Date(iso).toLocaleString("pt-BR");
-  } catch {
-    return String(iso);
-  }
+  return formatOrderDateTime(iso) || "-";
 }
 
 function brMoney(value: number) {
@@ -78,6 +81,26 @@ function statusLabel(status: string) {
     default:
       return status;
   }
+}
+
+function paymentStatusLabel(status: string | null | undefined) {
+  switch (status) {
+    case "submitted":
+      return "Comprovante enviado";
+    case "confirmed":
+      return "Pagamento confirmado";
+    case "cancelled":
+      return "Cancelado";
+    case "rejected":
+      return "Comprovante recusado";
+    default:
+      return "Aguardando comprovante";
+  }
+}
+
+function fileSizeLabel(bytes: number | null | undefined) {
+  if (!bytes || !Number.isFinite(bytes)) return "—";
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
 async function copy(text: string) {
@@ -118,6 +141,8 @@ export default function PedidoDetalhePage() {
     );
   }, [items]);
 
+  const scheduledReminders = useMemo(() => sortOrderReminders(reminders), [reminders]);
+
   const initialMsg = useMemo(() => {
     if (!order) return "";
     return (
@@ -128,7 +153,7 @@ export default function PedidoDetalhePage() {
       `📍 Retirada: *${pickupFullAddress(order)}*\n\n` +
       `Itens:\n${lines.join("\n")}\n\n` +
       `Prazo: reserve até *${brDateTime(order.expires_at)}*.\n` +
-      `Por favor, envie o comprovante aqui no WhatsApp após o pagamento e combinamos a retirada no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.\n` +
+      `Por favor, envie o comprovante pelo acompanhamento do pedido no site após o pagamento. Assim a equipe recebe o aviso automaticamente.\n` +
       `Obrigado(a)!`
     );
   }, [order, lines]);
@@ -140,7 +165,7 @@ export default function PedidoDetalhePage() {
       `Seu pedido *${order.code}* segue reservado.\n` +
       `Prazo final: *${brDateTime(order.expires_at)}*.\n\n` +
       `Pix (chave): ${order.pix_key}\n` +
-      `Após pagar, envie o comprovante aqui no WhatsApp. Obrigado(a)!`
+      `Após pagar, envie o comprovante pelo acompanhamento do pedido no site. Obrigado(a)!`
     );
   }, [order]);
 
@@ -152,7 +177,7 @@ export default function PedidoDetalhePage() {
       `Prazo final: *${brDateTime(order.expires_at)}*.\n\n` +
       `Pix (chave): ${order.pix_key}\n` +
       `Se o pagamento não for feito até o prazo, o pedido será cancelado e os itens voltam para o site.\n` +
-      `Após pagar, envie o comprovante aqui no WhatsApp. Obrigado(a)!`
+      `Após pagar, envie o comprovante pelo acompanhamento do pedido no site. Obrigado(a)!`
     );
   }, [order]);
 
@@ -219,7 +244,7 @@ export default function PedidoDetalhePage() {
         <div>
           <h1 className="text-2xl font-bold">Pedido {order.code}</h1>
           <div className="mt-1 text-sm text-slate-600">
-            Cliente: <b>{customerName(order)}</b> • Status: <b>{statusLabel(order.status)}</b> • Total: <b>{brMoney(Number(order.total) || 0)}</b>
+            Cliente: <b>{customerName(order)}</b> • Status: <b>{statusLabel(order.status)}</b> • Pagamento: <b>{paymentStatusLabel(order.payment_status)}</b> • Total: <b>{brMoney(Number(order.total) || 0)}</b>
           </div>
           <div className="mt-1 text-xs text-slate-500">
             Criado em {brDateTime(order.created_at)} • Expira em {brDateTime(order.expires_at)} • Retirada: {pickupFullAddress(order)}
@@ -252,11 +277,11 @@ export default function PedidoDetalhePage() {
 
           <div className="mt-5 flex flex-wrap gap-2">
             <button
-              disabled={busy === "mark_paid" || order.status !== "reserved"}
+              disabled={busy === "mark_paid" || (order.status !== "reserved" && order.status !== "paid")}
               onClick={() => void action("mark_paid")}
               className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
             >
-              Marcar como Pago
+              Confirmar pagamento
             </button>
             <button
               disabled={busy === "mark_delivered" || (order.status !== "paid" && order.status !== "reserved")}
@@ -272,6 +297,28 @@ export default function PedidoDetalhePage() {
             >
               Cancelar e liberar itens
             </button>
+          </div>
+
+          <div className="mt-5 rounded-2xl border bg-slate-50 p-4">
+            <div className="font-semibold">Comprovante Pix</div>
+            <div className="mt-2 grid gap-1 text-sm text-slate-700">
+              <div>Status: <b>{paymentStatusLabel(order.payment_status)}</b></div>
+              <div>Enviado em: <b>{order.payment_proof_uploaded_at ? brDateTime(order.payment_proof_uploaded_at) : "—"}</b></div>
+              <div>Tipo: <b>{order.payment_proof_mime_type || "—"}</b></div>
+              <div>Tamanho: <b>{fileSizeLabel(order.payment_proof_size_bytes)}</b></div>
+            </div>
+            {order.payment_proof_signed_url ? (
+              <a
+                href={order.payment_proof_signed_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex rounded-xl border bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+              >
+                Abrir comprovante
+              </a>
+            ) : (
+              <p className="mt-3 text-sm text-slate-500">Nenhum comprovante enviado ainda.</p>
+            )}
           </div>
         </div>
 
@@ -309,7 +356,7 @@ export default function PedidoDetalhePage() {
 
       <div className="mt-6 rounded-2xl border bg-white p-5">
         <div className="font-semibold">Lembretes agendados (8h e 16h)</div>
-        <p className="mt-1 text-sm text-slate-600">O sistema agenda; você copia e envia no WhatsApp e marca como enviado.</p>
+        <p className="mt-1 text-sm text-slate-600">O sistema envia e-mails automaticamente quando a rota de automação é executada. Use os botões apenas para controle manual quando necessário.</p>
 
         <div className="mt-4 overflow-hidden rounded-2xl border">
           <table className="w-full text-sm">
@@ -322,9 +369,9 @@ export default function PedidoDetalhePage() {
               </tr>
             </thead>
             <tbody>
-              {reminders.map((r) => (
+              {scheduledReminders.map((r) => (
                 <tr key={r.id} className="border-t">
-                  <td className="px-3 py-2">{r.kind === "remind_8h" ? "8h" : "16h"}</td>
+                  <td className="px-3 py-2">{getReminderLabel(r.kind)}</td>
                   <td className="px-3 py-2 text-xs text-slate-600">{brDateTime(r.due_at)}</td>
                   <td className="px-3 py-2 text-xs">{r.sent_at ? `Sim (${brDateTime(r.sent_at)})` : "Não"}</td>
                   <td className="px-3 py-2">
@@ -346,7 +393,7 @@ export default function PedidoDetalhePage() {
                   </td>
                 </tr>
               ))}
-              {!reminders.length ? (
+              {!scheduledReminders.length ? (
                 <tr>
                   <td className="px-3 py-6 text-center text-slate-500" colSpan={4}>
                     Nenhum lembrete encontrado.

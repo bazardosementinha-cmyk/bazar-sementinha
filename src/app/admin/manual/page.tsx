@@ -36,10 +36,10 @@ export default function AdminManualPage() {
         <h2 className="text-xl font-bold">Processo visto pelo comprador</h2>
         <p className="mt-2 text-sm leading-6 text-emerald-900">
           Na loja pública, o processo não deve parecer burocrático. Ele deve transmitir confiança:
-          o comprador escolhe um item único, reserva pelo site, envia o comprovante do Pix e a equipe separa pelo código.
+          o comprador escolhe um item único, reserva pelo site, envia o comprovante do Pix diretamente no pedido e a equipe separa pelo código após conferir o pagamento.
         </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-4">
-          {["Escolher", "Reservar", "Enviar comprovante", "Retirar"].map((step, index) => (
+        <div className="mt-4 grid gap-3 md:grid-cols-5">
+          {["Escolher", "Reservar", "Enviar comprovante no pedido", "Aguardar conferência", "Retirar"].map((step, index) => (
             <div key={step} className="rounded-2xl bg-white/80 p-4">
               <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">Passo {index + 1}</div>
               <div className="mt-1 font-bold">{step}</div>
@@ -220,6 +220,36 @@ export default function AdminManualPage() {
           ))}
         </div>
       </section>
+
+      <section id="comprovante-pix" className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
+        <h2 className="text-xl font-bold">Fluxo seguro do comprovante Pix</h2>
+        <p className="mt-2 text-sm leading-6 text-emerald-900">
+          O cliente não precisa mais enviar o comprovante pelo WhatsApp. Ele acessa o pedido, faz upload do arquivo e o sistema avisa o Bazar por e-mail com cópia para o cliente.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">1. Cliente</div>
+            <div className="mt-1 font-bold">Envia comprovante no pedido</div>
+            <p className="mt-1 text-sm text-emerald-900">JPG, PNG, WEBP ou PDF até 8 MB.</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">2. Sistema</div>
+            <div className="mt-1 font-bold">Marca como Comprovante enviado</div>
+            <p className="mt-1 text-sm text-emerald-900">O pedido para de receber lembretes automáticos.</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">3. Bazar</div>
+            <div className="mt-1 font-bold">Confere o Pix</div>
+            <p className="mt-1 text-sm text-emerald-900">Confira valor, favorecido, data e código do pedido.</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">4. Admin</div>
+            <div className="mt-1 font-bold">Confirma pagamento</div>
+            <p className="mt-1 text-sm text-emerald-900">Depois disso, a retirada pode ser alinhada.</p>
+          </div>
+        </div>
+      </section>
+
     </div>
   );
 }

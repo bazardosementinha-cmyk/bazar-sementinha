@@ -29,7 +29,7 @@ export async function GET(req: Request) {
     return NextResponse.json(result, { status: result.ok ? 200 : 207 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro inesperado ao processar notificações.";
-    console.error("[cron/expire-orders] Falha geral", { error: message });
+    console.error("[cron/process-order-notifications] Falha geral", { error: message });
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

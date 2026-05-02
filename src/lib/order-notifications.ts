@@ -1,5 +1,6 @@
 import { buildTrackingAbsoluteUrl } from "@/lib/order-links";
 import { getAdminEmailCopyTo } from "@/lib/email-config";
+import { formatOrderDateTime } from "@/lib/order-dates";
 
 const PICKUP_FULL = "Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP";
 
@@ -10,6 +11,7 @@ export type MailOrderItem = {
 };
 
 export type MailOrder = {
+  id?: string;
   code: string;
   customer_name: string | null;
   customer_email: string | null;
@@ -26,10 +28,7 @@ function brMoney(value: number): string {
 }
 
 function brDateTime(value: string | null | undefined): string {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString("pt-BR");
+  return formatOrderDateTime(value);
 }
 
 function customerName(name: string | null | undefined): string {
@@ -82,7 +81,7 @@ export function buildOrderCreatedEmail(order: MailOrder, items: MailOrderItem[])
     "",
     `Acompanhe seu pedido: ${link}`,
     "",
-    "Se o pagamento for por Pix, envie o comprovante por e-mail respondendo esta mensagem ou pelo WhatsApp e combinamos a retirada no Tucxa2.",
+    "Se o pagamento for por Pix, use o link de acompanhamento do pedido para enviar o comprovante diretamente no site. Assim a equipe recebe o aviso automaticamente e confere o pagamento.",
     "",
     "Obrigado por apoiar o Bazar do Sementinha!",
   ]
@@ -101,7 +100,7 @@ export function buildOrderCreatedEmail(order: MailOrder, items: MailOrderItem[])
       <h3>Itens do pedido</h3>
       ${itemsHtml(items)}
       <p><a href="${escapeHtml(link)}">Clique aqui para acompanhar seu pedido</a></p>
-      <p>Se o pagamento for por Pix, envie o comprovante respondendo este e-mail ou pelo WhatsApp e combinamos a retirada no Tucxa2.</p>
+      <p>Se o pagamento for por Pix, use o link de acompanhamento do pedido para enviar o comprovante diretamente no site. Assim a equipe recebe o aviso automaticamente e confere o pagamento.</p>
       <p>Obrigado por apoiar o Bazar do Sementinha!</p>
     </div>`;
 
@@ -127,7 +126,7 @@ export function buildReminderEmail(order: MailOrder, kind: "remind_8h" | "remind
     "",
     `Acompanhe seu pedido: ${link}`,
     "",
-    "Após o pagamento, envie o comprovante por e-mail respondendo esta mensagem ou pelo WhatsApp. A retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.",
+    "Após o pagamento, envie o comprovante no acompanhamento do pedido. A equipe será avisada automaticamente e a retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.",
     "",
     "Obrigado!",
   ]
@@ -144,7 +143,7 @@ export function buildReminderEmail(order: MailOrder, kind: "remind_8h" | "remind
       <h3>Itens do pedido</h3>
       ${itemsHtml(items)}
       <p><a href="${escapeHtml(link)}">Clique aqui para acompanhar seu pedido</a></p>
-      <p>Após o pagamento, envie o comprovante respondendo este e-mail ou pelo WhatsApp. A retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.</p>
+      <p>Após o pagamento, envie o comprovante no acompanhamento do pedido. A equipe será avisada automaticamente e a retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.</p>
       <p>Obrigado!</p>
     </div>`;
 
@@ -186,4 +185,62 @@ export function buildCancellationEmail(order: MailOrder, items: MailOrderItem[])
     </div>`;
 
   return { subject, text, html, cc: getAdminEmailCopyTo() };
+}
+
+
+export function buildPaymentProofSubmittedEmail(params: {
+  order: MailOrder;
+  items: MailOrderItem[];
+  proofUrl?: string | null;
+  proofFileName?: string | null;
+  proofMimeType?: string | null;
+  proofSizeBytes?: number | null;
+}) {
+  const { order, items, proofUrl, proofFileName, proofMimeType, proofSizeBytes } = params;
+  const name = customerName(order.customer_name);
+  const link = trackingUrl(order);
+  const subject = `Bazar do Sementinha • Comprovante enviado para o pedido ${order.code}`;
+  const sizeText = typeof proofSizeBytes === "number" ? `${(proofSizeBytes / 1024 / 1024).toFixed(2)} MB` : null;
+
+  const text = [
+    `Comprovante recebido para o pedido ${order.code}.`,
+    "",
+    `Cliente: ${name}`,
+    order.customer_email ? `E-mail: ${order.customer_email}` : null,
+    order.customer_whatsapp ? `WhatsApp: ${order.customer_whatsapp}` : null,
+    `Total do pedido: ${brMoney(order.total)}`,
+    proofFileName ? `Arquivo: ${proofFileName}` : null,
+    proofMimeType ? `Tipo: ${proofMimeType}` : null,
+    sizeText ? `Tamanho: ${sizeText}` : null,
+    proofUrl ? `Link temporário para conferir o comprovante: ${proofUrl}` : null,
+    "",
+    "Itens do pedido:",
+    itemsText(items),
+    "",
+    `Link de acompanhamento do cliente: ${link}`,
+    "",
+    "Ação recomendada: confira valor, data, favorecido e código do pedido antes de marcar como Pago.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#1f2937">
+      <h2>Bazar do Sementinha</h2>
+      <p>Comprovante recebido para o pedido <strong>${escapeHtml(order.code)}</strong>.</p>
+      <p><strong>Cliente:</strong> ${escapeHtml(name)}<br/>
+      ${order.customer_email ? `<strong>E-mail:</strong> ${escapeHtml(order.customer_email)}<br/>` : ""}
+      ${order.customer_whatsapp ? `<strong>WhatsApp:</strong> ${escapeHtml(order.customer_whatsapp)}<br/>` : ""}
+      <strong>Total do pedido:</strong> ${escapeHtml(brMoney(order.total))}</p>
+      <p>${proofFileName ? `<strong>Arquivo:</strong> ${escapeHtml(proofFileName)}<br/>` : ""}
+      ${proofMimeType ? `<strong>Tipo:</strong> ${escapeHtml(proofMimeType)}<br/>` : ""}
+      ${sizeText ? `<strong>Tamanho:</strong> ${escapeHtml(sizeText)}<br/>` : ""}
+      ${proofUrl ? `<a href="${escapeHtml(proofUrl)}">Abrir comprovante temporariamente</a>` : ""}</p>
+      <h3>Itens do pedido</h3>
+      ${itemsHtml(items)}
+      <p><a href="${escapeHtml(link)}">Link de acompanhamento do cliente</a></p>
+      <p><strong>Ação recomendada:</strong> confira valor, data, favorecido e código do pedido antes de marcar como Pago.</p>
+    </div>`;
+
+  return { subject, text, html, cc: order.customer_email || undefined };
 }

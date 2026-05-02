@@ -92,7 +92,7 @@ export const ADMIN_HELP_TOPICS = {
     bullets: [
       "Reserva ativa não deve liberar o item para outro comprador antes do prazo/cancelamento.",
       "Use o código do pedido e o código do item para localizar rapidamente na caixa/local informado.",
-      "Após pagamento confirmado, mantenha o registro atualizado para transparência.",
+      "Quando o cliente enviar comprovante pelo pedido, confira valor, data e favorecido antes de marcar como pago.",
       "Cancelamentos devem devolver o item ao fluxo correto somente quando a reserva realmente expirar.",
     ],
     ctaHref: "/admin/manual#venda",
@@ -104,8 +104,8 @@ export const ADMIN_HELP_TOPICS = {
       "A página do pedido é o checklist de atendimento: confirmar pagamento, separar itens pelo código e registrar a conclusão.",
     bullets: [
       "Sempre confira os itens do pedido contra os códigos físicos antes da retirada.",
-      "Priorize o comprovante do Pix para confirmar a reserva e evitar retrabalho.",
-      "Use WhatsApp para alinhar retirada e orientar o comprador quando necessário.",
+      "Comprovante enviado no site deve ser conferido antes de confirmar pagamento.",
+      "Use WhatsApp apenas para dúvidas e retirada; o comprovante deve ficar registrado no pedido.",
       "Finalize como entregue/vendido somente depois da conferência completa.",
     ],
     ctaHref: "/admin/manual#separacao",

@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/expire-orders",
+      "path": "/api/cron/process-order-notifications",
       "schedule": "0 10 * * *"
     }
   ]

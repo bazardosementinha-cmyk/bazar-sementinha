@@ -14,7 +14,7 @@ export const PUBLIC_PROCESS_COPY = {
     },
     {
       title: "Envie o comprovante",
-      text: "O fluxo é comprovante-first: faça o Pix, envie o print pelo WhatsApp e agilize a confirmação.",
+      text: "O fluxo é comprovante-first: faça o Pix, envie o comprovante direto no pedido e agilize a conferência pela equipe.",
     },
     {
       title: "Retire com segurança",

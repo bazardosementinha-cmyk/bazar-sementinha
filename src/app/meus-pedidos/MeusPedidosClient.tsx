@@ -325,14 +325,12 @@ export default function MeusPedidosClient() {
             </Link>
 
             {(order.payment_plan === "pix_now" || order.payment_plan === "card_pickup_deposit") && order.status === "reserved" && (
-              <a
-                href={buildWhatsappUrl(order, data.support)}
-                target="_blank"
-                rel="noreferrer"
+              <Link
+                href={order.tracking_url}
                 className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
               >
-                Enviar comprovante no WhatsApp
-              </a>
+                Enviar comprovante no pedido
+              </Link>
             )}
           </div>
         </div>
