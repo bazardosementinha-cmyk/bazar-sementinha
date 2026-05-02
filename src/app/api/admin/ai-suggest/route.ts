@@ -45,6 +45,7 @@ type AiSuggestion = Partial<{
   condition_notes: string | null;
   is_fragile: boolean | null;
   requires_measurement: boolean | null;
+  label_template: "P" | "M" | "G" | "TAG" | "SAQUINHO" | "FRAGIL" | null;
 }>;
 
 class GeminiHttpError extends Error {
@@ -284,7 +285,8 @@ async function repairToValidJson(apiKey: string, model: string, badText: string)
     '  "measurements": "string|null",',
     '  "condition_notes": "string|null",',
     '  "is_fragile": "boolean|null",',
-    '  "requires_measurement": "boolean|null"',
+    '  "requires_measurement": "boolean|null",',
+    '  "label_template": "P|M|G|TAG|SAQUINHO|FRAGIL|null"',
     "}",
     "",
     "Texto:",
@@ -354,6 +356,7 @@ export async function POST(req: Request) {
     "- brand/color/material/measurements/condition_notes: preencha quando a foto permitir inferir com segurança.",
     "- is_fragile: true para vidro, porcelana, cerâmica, louças e itens quebráveis.",
     "- requires_measurement: true para roupas, calçados, casa/decoração, kits e itens cujo tamanho influencia a compra.",
+    "- label_template: P para pequenos, M para comum, G para caixa/kit/calçado, TAG para roupas, SAQUINHO para bijuterias/joias pequenas, FRAGIL para quebráveis.",
     "",
     `Categorias conhecidas: ${knownCategories.length ? knownCategories.join(", ") : "Roupas, Calçados, Acessórios, Outros"}.`,
     "",
@@ -382,7 +385,8 @@ export async function POST(req: Request) {
     '  "measurements": null,',
     '  "condition_notes": null,',
     '  "is_fragile": null,',
-    '  "requires_measurement": null',
+    '  "requires_measurement": null,',
+    '  "label_template": null',
     "}",
   ].join("\n");
 

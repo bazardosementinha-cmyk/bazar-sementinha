@@ -82,13 +82,38 @@ export default function AdminManualPage() {
           </div>
           <div className="rounded-2xl bg-slate-50 p-4">
             <div className="font-semibold">Informações obrigatórias</div>
-            <p className="mt-1 text-sm text-slate-600">Título, categoria, condição, preço, tamanho quando aplicável e local/caixa.</p>
+            <p className="mt-1 text-sm text-slate-600">Título, categoria, tipo específico, condição, preço, tamanho/medidas quando aplicável e local/caixa.</p>
           </div>
           <div className="rounded-2xl bg-slate-50 p-4">
             <div className="font-semibold">Status inicial</div>
             <p className="mt-1 text-sm text-slate-600">Todo item novo deve nascer como rascunho/em revisão.</p>
           </div>
         </div>
+      </section>
+
+      <section id="prompt-csv" className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950">
+        <h2 className="text-xl font-bold">Prompt CSV v2 para cadastro por fotos</h2>
+        <p className="mt-2 text-sm leading-6 text-amber-900">
+          O prompt oficial agora gera um CSV mais completo, alinhado aos campos operacionais do cadastro. Além das fotos,
+          informe o local previsto do item quando souber, por exemplo: <b>Caixa A03</b>, <b>Arara Feminino 1</b> ou <b>Prateleira Casa 2</b>.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="font-bold">Identificação</div>
+            <p className="mt-1 text-sm text-amber-900">title, description, category, subcategory, item_type, brand, color e material.</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="font-bold">Operação física</div>
+            <p className="mt-1 text-sm text-amber-900">measurements, is_fragile, requires_measurement, label_template e location_box.</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="font-bold">Revisão</div>
+            <p className="mt-1 text-sm text-amber-900">condition_notes e notes_internal ajudam a registrar avarias, dúvidas e próximos passos.</p>
+          </div>
+        </div>
+        <p className="mt-4 text-xs text-amber-900">
+          O prompt versionado fica em <code>docs/prompts/bazar-item-csv-prompt-v2.md</code>.
+        </p>
       </section>
 
       <section id="taxonomia" className="mt-6 rounded-2xl border bg-white p-5">
@@ -246,6 +271,59 @@ export default function AdminManualPage() {
             <div className="text-xs font-bold uppercase tracking-wide text-emerald-700">4. Admin</div>
             <div className="mt-1 font-bold">Confirma pagamento</div>
             <p className="mt-1 text-sm text-emerald-900">Depois disso, a retirada pode ser alinhada.</p>
+          </div>
+        </div>
+      </section>
+
+
+      <section id="catalogo-demo" className="mt-6 rounded-2xl border border-indigo-200 bg-indigo-50 p-5 text-indigo-950">
+        <h2 className="text-xl font-bold">Catálogo demo para coordenação e treinamento</h2>
+        <p className="mt-2 text-sm leading-6 text-indigo-900">
+          O catálogo demo é uma vitrine interna: ele mostra exemplos completos de Roupas, Calçados, Acessórios, Casa, Brinquedos, Artesanatos e Outros, com categoria, tipo, local físico, etiqueta recomendada e três fotos demonstrativas por item.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="font-bold">Não aparece na loja</div>
+            <p className="mt-1 text-sm text-indigo-900">Itens demo usam <code>is_demo=true</code> e <code>visibility=admin_demo</code>, ficando fora da home e das APIs públicas.</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="font-bold">Serve para mostrar o processo</div>
+            <p className="mt-1 text-sm text-indigo-900">Ideal para apresentar cadastro, revisão, QR, localização e impressão de etiquetas em lote.</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-4">
+            <div className="font-bold">Não mistura com venda real</div>
+            <p className="mt-1 text-sm text-indigo-900">Itens demo permanecem como rascunho/review e não entram no funil de compra do cliente.</p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href="/admin/catalogo-demo" className="rounded-full bg-indigo-700 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-800">Abrir catálogo demo</Link>
+          <Link href="/admin/etiquetas/lote?demo=1" className="rounded-full border bg-white px-4 py-2 text-sm font-semibold hover:bg-indigo-50">Imprimir etiquetas demo</Link>
+        </div>
+      </section>
+
+      <section id="etiquetas-lote" className="mt-6 rounded-2xl border bg-white p-5">
+        <h2 className="text-xl font-bold">Impressão de etiquetas em lote</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Quando vários itens forem cadastrados ou importados por CSV, imprima as etiquetas em lote para acelerar a operação. O lote deve ser conferido antes da impressão: código curto, título, preço, local físico e modelo de etiqueta.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="font-semibold">Quando usar</div>
+            <ul className="mt-2 space-y-1 text-sm text-slate-600">
+              <li>• Após importar uma planilha/CSV de itens.</li>
+              <li>• Antes de guardar os itens em caixas, araras ou prateleiras.</li>
+              <li>• Para demonstração com catálogo demo aos coordenadores.</li>
+            </ul>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4">
+            <div className="font-semibold">Regras por categoria</div>
+            <ul className="mt-2 space-y-1 text-sm text-slate-600">
+              <li>• Roupas: TAG pendurada.</li>
+              <li>• Calçados: G na caixa/sacola.</li>
+              <li>• Acessórios pequenos: SAQUINHO.</li>
+              <li>• Casa frágil: FRAGIL.</li>
+              <li>• Brinquedos, Artesanatos e Outros: M.</li>
+            </ul>
           </div>
         </div>
       </section>

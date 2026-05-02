@@ -55,6 +55,10 @@ create table if not exists public.items (
   tagged_at timestamptz,
   reviewed_at timestamptz,
   published_at timestamptz,
+  is_demo boolean not null default false,
+  demo_group text,
+  demo_sort integer,
+  visibility text not null default 'public',
 
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
@@ -67,6 +71,10 @@ create index if not exists idx_items_category on public.items(category);
 create index if not exists idx_items_item_type on public.items(item_type);
 create index if not exists idx_items_label_template on public.items(label_template);
 create index if not exists idx_items_review_status on public.items(review_status);
+create index if not exists idx_items_is_demo on public.items(is_demo);
+create index if not exists idx_items_visibility on public.items(visibility);
+create index if not exists idx_items_demo_group on public.items(demo_group);
+create index if not exists idx_items_demo_sort on public.items(demo_sort);
 
 create table if not exists public.item_photos (
   id bigserial primary key,

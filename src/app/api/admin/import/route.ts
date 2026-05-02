@@ -23,6 +23,22 @@ function parseMoneyBR(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function parseBoolean(input: FormDataEntryValue | null): boolean | null {
+  const value = String(input ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .toLowerCase();
+
+  if (["true", "1", "sim", "s", "yes", "y"].includes(value)) return true;
+  if (["false", "0", "nao", "n", "no"].includes(value)) return false;
+  return null;
+}
+
+function optionalText(form: FormData, key: string): string | null {
+  return String(form.get(key) ?? "").trim() || null;
+}
+
 export async function POST(req: Request) {
   const gate = await requireAdmin();
   if (!gate.ok) return NextResponse.json({ error: gate.reason }, { status: 401 });
@@ -48,13 +64,18 @@ export async function POST(req: Request) {
   const price = parseMoneyBR(String(form.get("price") ?? ""));
   const price_from = parseMoneyBR(String(form.get("price_from") ?? ""));
 
-  const location_box = String(form.get("location_box") ?? "").trim() || null;
-  const notes_internal = String(form.get("notes_internal") ?? "").trim() || null;
-  const brand = String(form.get("brand") ?? "").trim() || null;
-  const color = String(form.get("color") ?? "").trim() || null;
-  const material = String(form.get("material") ?? "").trim() || null;
-  const measurements = String(form.get("measurements") ?? "").trim() || null;
-  const condition_notes = String(form.get("condition_notes") ?? "").trim() || null;
+  const location_box = optionalText(form, "location_box");
+  const notes_internal = optionalText(form, "notes_internal");
+  const subcategory = optionalText(form, "subcategory");
+  const item_type = optionalText(form, "item_type");
+  const brand = optionalText(form, "brand");
+  const color = optionalText(form, "color");
+  const material = optionalText(form, "material");
+  const measurements = optionalText(form, "measurements");
+  const condition_notes = optionalText(form, "condition_notes");
+  const label_template = optionalText(form, "label_template");
+  const is_fragile = parseBoolean(form.get("is_fragile"));
+  const requires_measurement = parseBoolean(form.get("requires_measurement"));
 
   const operational = deriveOperationalFields({
     category,
@@ -95,16 +116,16 @@ export async function POST(req: Request) {
       season,
       size_type,
       size_value,
-      subcategory: operational.subcategory,
-      item_type: operational.item_type,
+      subcategory: subcategory ?? operational.subcategory,
+      item_type: item_type ?? operational.item_type,
       brand,
       color,
       material,
       measurements,
       condition_notes,
-      is_fragile: operational.is_fragile,
-      requires_measurement: operational.requires_measurement,
-      label_template: operational.label_template,
+      is_fragile: is_fragile ?? operational.is_fragile,
+      requires_measurement: requires_measurement ?? operational.requires_measurement,
+      label_template: label_template ?? operational.label_template,
       review_status: "draft",
     })
     .select("id, short_id, status")

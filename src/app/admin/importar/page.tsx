@@ -5,6 +5,8 @@ import { useMemo, useRef, useState, type FormEvent } from "react";
 import ContextHelp from "@/components/ContextHelp";
 import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
 import { getLabelRecommendation } from "@/lib/item-taxonomy";
+import { BAZAR_ITEM_CSV_PROMPT_COMPACT as CHATGPT_PROMPT_COMPACT, BAZAR_ITEM_CSV_PROMPT_FULL as CHATGPT_PROMPT_FULL } from "@/lib/item-csv-prompt";
+import { parseBooleanLike, normalizeLabelTemplate } from "@/lib/item-csv-schema";
 
 type ImportResult = { short_id: string; status: string };
 
@@ -128,46 +130,6 @@ function parseCsvSemicolon(csvText: string): CsvRow | null {
   return out;
 }
 
-// Prompt FULL (para botao "Copiar prompt")
-const CHATGPT_PROMPT_FULL = `Voce e um assistente de catalogacao para um bazar beneficente (Brasil).
-
-Tarefa:
-- Analise de 3 a 7 fotos anexadas (um unico item).
-- Gere UM CSV com cabecalho + 1 linha, separador ";" e aspas quando necessario.
-- IMPORTANTE: no chat, responda SOMENTE com o CSV (nada alem do CSV).
-- Se sua interface permitir, crie tambem um ARQUIVO anexado para download chamado ITEM.csv com o mesmo conteudo do CSV.
-
-Formato do CSV:
-- Exatamente 2 linhas: (1) cabecalho (2) 1 linha do item.
-- Colunas (exatas e nesta ordem):
-title;description;category;condition;price;price_from;gender;age_group;season;size_type;size_value;location_box;notes_internal
-
-Regras:
-- category: prefira "Roupas" | "Calcados" | "Acessorios" | "Outros". Se realmente precisar, pode sugerir outra.
-- condition: "Novo" | "Muito bom" | "Bom" | "Regular".
-- price e price_from: formato "115,00". Se nao houver etiqueta visivel, estime conservador.
-- gender (só roupas): "feminino" | "masculino" | "unissex". Se nao for roupa, vazio.
-- age_group (só roupas): "infantil" | "adolescente" | "adulto". Se nao for roupa, vazio.
-- season (só roupas): "verao" | "inverno" | "meia_estacao" | "todas". Se nao for roupa, vazio.
-- size_type: "livre" | "roupa_letras" | "roupa_numero" | "calcado_br" | "infantil_idade" | "medidas_cm"
-- size_value (exemplos): "M" | "38" | "40" | "10 anos" | "25cm" | "" (livre)
-- location_box: vazio
-- notes_internal: defeitos discretos se houver (ex.: "pequena mancha na foto 3"), senao vazio
-
-CSV quoting (importante):
-- Se algum campo tiver ponto-e-virgula, aspas ou quebra de linha, coloque entre aspas duplas.
-- Se houver aspas dentro do campo, duplique-as (ex.: "a""b").
-- Nao escreva nada fora do CSV.
-
-Deep Dive:
-- title: curto e instagramavel (objeto + atributo: cor/marca/tamanho)
-- description: 180-220 caracteres, sem quebra de linha, 1 beneficio + beneficio social:
-"100% do valor e revertido para a acao social do Bazar do Sementinha".`;
-
-// Prompt COMPACTO (para URL do ChatGPT, mais seguro em mobile)
-const CHATGPT_PROMPT_COMPACT =
-  'Voce e um assistente de catalogacao para um bazar beneficente (Brasil). Analise 3-7 fotos (1 item) e gere UM CSV (cabecalho + 1 linha) com separador ";" e aspas quando necessario. Responda SOMENTE o CSV. Se possivel, anexe ITEM.csv. Colunas: title;description;category;condition;price;price_from;gender;age_group;season;size_type;size_value;location_box;notes_internal. Title instagramavel. Description 180-220 chars, sem quebra de linha, com beneficio social: "100% do valor e revertido para a acao social do Bazar do Sementinha".';
-
 export default function CadastrarItemPage() {
   const formRef = useRef<HTMLFormElement | null>(null);
 
@@ -197,6 +159,17 @@ export default function CadastrarItemPage() {
 
   const [locationBox, setLocationBox] = useState("");
   const [notesInternal, setNotesInternal] = useState("");
+
+  const [subcategory, setSubcategory] = useState("");
+  const [itemType, setItemType] = useState("");
+  const [brand, setBrand] = useState("");
+  const [color, setColor] = useState("");
+  const [material, setMaterial] = useState("");
+  const [measurements, setMeasurements] = useState("");
+  const [conditionNotes, setConditionNotes] = useState("");
+  const [isFragile, setIsFragile] = useState("");
+  const [requiresMeasurement, setRequiresMeasurement] = useState("");
+  const [labelTemplate, setLabelTemplate] = useState("");
 
   const suggestedTitle = useMemo(() => (title.trim() ? title.trim() : "Item do Bazar"), [title]);
 
@@ -300,7 +273,17 @@ export default function CadastrarItemPage() {
       const st = get("size_type");
       const sv = get("size_value");
       const lb = get("location_box");
+      const conditionNotesCsv = get("condition_notes");
       const ni = get("notes_internal");
+      const sub = get("subcategory");
+      const type = get("item_type");
+      const br = get("brand");
+      const co = get("color");
+      const mat = get("material");
+      const meas = get("measurements");
+      const fragile = get("is_fragile");
+      const reqMeas = get("requires_measurement");
+      const label = get("label_template");
 
       if (t) setTitle(t);
       if (d) setDescription(clamp(d, 320));
@@ -316,7 +299,23 @@ export default function CadastrarItemPage() {
       if (sv) setSizeValue(sv);
 
       if (lb) setLocationBox(lb);
+      if (conditionNotesCsv) setConditionNotes(conditionNotesCsv);
       if (ni) setNotesInternal(ni);
+      if (sub) setSubcategory(sub);
+      if (type) setItemType(type);
+      if (br) setBrand(br);
+      if (co) setColor(co);
+      if (mat) setMaterial(mat);
+      if (meas) setMeasurements(meas);
+      if (fragile) {
+        const parsed = parseBooleanLike(fragile);
+        setIsFragile(parsed == null ? fragile : parsed ? "true" : "false");
+      }
+      if (reqMeas) {
+        const parsed = parseBooleanLike(reqMeas);
+        setRequiresMeasurement(parsed == null ? reqMeas : parsed ? "true" : "false");
+      }
+      if (label) setLabelTemplate(normalizeLabelTemplate(label));
 
       if (c && !categories.includes(c)) {
         setCategories((prev) => Array.from(new Set([...prev, c])).sort((a, b) => a.localeCompare(b)));
@@ -375,6 +374,16 @@ export default function CadastrarItemPage() {
       setPrice("");
       setLocationBox("");
       setNotesInternal("");
+      setSubcategory("");
+      setItemType("");
+      setBrand("");
+      setColor("");
+      setMaterial("");
+      setMeasurements("");
+      setConditionNotes("");
+      setIsFragile("");
+      setRequiresMeasurement("");
+      setLabelTemplate("");
 
       await loadCategories();
     } catch (err: unknown) {
@@ -447,7 +456,7 @@ export default function CadastrarItemPage() {
               onChange={(e) => void onCsvChange(e.target.files?.[0] ?? null)}
             />
             <div className="mt-1 text-xs text-slate-500">
-              Esperado: separador &quot;;&quot;, cabecalho + 1 linha.
+              Esperado: separador &quot;;&quot;, cabecalho + 1 linha. Aceita o CSV v2 com local, tipo, fragilidade, medida e etiqueta.
             </div>
           </div>
 
@@ -642,6 +651,133 @@ export default function CadastrarItemPage() {
                   placeholder="Ex.: M / 38 / 25cm"
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border bg-slate-50 p-4">
+            <div className="font-semibold mb-2">Detalhes operacionais do item</div>
+            <p className="mb-4 text-xs text-slate-500">
+              Estes campos ajudam a revisar, etiquetar, localizar e publicar o item com menos retrabalho.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="text-sm font-medium">Subcategoria</label>
+                <input
+                  name="subcategory"
+                  value={subcategory}
+                  onChange={(e) => setSubcategory(e.target.value)}
+                  className="mt-1 w-full rounded-xl border px-3 py-2"
+                  placeholder="Ex.: Feminino / Casa / Bijuterias"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Tipo específico</label>
+                <input
+                  name="item_type"
+                  value={itemType}
+                  onChange={(e) => setItemType(e.target.value)}
+                  className="mt-1 w-full rounded-xl border px-3 py-2"
+                  placeholder="Ex.: Vestido / Brinco / Travessa"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Marca</label>
+                <input
+                  name="brand"
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  className="mt-1 w-full rounded-xl border px-3 py-2"
+                  placeholder="Ex.: Nike / Zara / sem marca visível"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Cor predominante</label>
+                <input
+                  name="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="mt-1 w-full rounded-xl border px-3 py-2"
+                  placeholder="Ex.: preto / azul / floral"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Material</label>
+                <input
+                  name="material"
+                  value={material}
+                  onChange={(e) => setMaterial(e.target.value)}
+                  className="mt-1 w-full rounded-xl border px-3 py-2"
+                  placeholder="Ex.: tecido / vidro / metal"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Medidas</label>
+                <input
+                  name="measurements"
+                  value={measurements}
+                  onChange={(e) => setMeasurements(e.target.value)}
+                  className="mt-1 w-full rounded-xl border px-3 py-2"
+                  placeholder="Ex.: 30 x 20 cm"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="text-sm font-medium">Frágil?</label>
+                <select
+                  name="is_fragile"
+                  value={isFragile}
+                  onChange={(e) => setIsFragile(e.target.value)}
+                  className="mt-1 w-full rounded-xl border px-3 py-2"
+                >
+                  <option value="">Automático</option>
+                  <option value="true">Sim</option>
+                  <option value="false">Não</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Precisa medir?</label>
+                <select
+                  name="requires_measurement"
+                  value={requiresMeasurement}
+                  onChange={(e) => setRequiresMeasurement(e.target.value)}
+                  className="mt-1 w-full rounded-xl border px-3 py-2"
+                >
+                  <option value="">Automático</option>
+                  <option value="true">Sim</option>
+                  <option value="false">Não</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Modelo de etiqueta</label>
+                <select
+                  name="label_template"
+                  value={labelTemplate}
+                  onChange={(e) => setLabelTemplate(e.target.value)}
+                  className="mt-1 w-full rounded-xl border px-3 py-2"
+                >
+                  <option value="">Automático</option>
+                  <option value="P">P</option>
+                  <option value="M">M</option>
+                  <option value="G">G</option>
+                  <option value="TAG">TAG</option>
+                  <option value="SAQUINHO">SAQUINHO</option>
+                  <option value="FRAGIL">FRÁGIL</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="text-sm font-medium">Observações de conservação</label>
+              <input
+                name="condition_notes"
+                value={conditionNotes}
+                onChange={(e) => setConditionNotes(e.target.value)}
+                className="mt-1 w-full rounded-xl border px-3 py-2"
+                placeholder="Ex.: sem avarias visíveis / pequena mancha"
+              />
             </div>
           </div>
 

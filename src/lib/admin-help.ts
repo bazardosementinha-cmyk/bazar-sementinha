@@ -26,9 +26,10 @@ export const ADMIN_HELP_TOPICS = {
       "O cadastro correto evita venda errada, item perdido no estoque e dúvida no momento da retirada.",
     bullets: [
       "Fotografe frente, detalhe, etiqueta/tamanho e defeitos, se houver.",
-      "Use categoria e tamanho com atenção: roupa, calçado, acessório, casa, brinquedo, artesanato ou outros.",
-      "Preencha o local/caixa antes de publicar para facilitar a separação do pedido.",
-      "Depois de criar o rascunho, revise e gere o QR/etiqueta antes de guardar o item.",
+      "Use categoria, subcategoria e tipo específico com atenção: roupa, calçado, acessório, casa, brinquedo, artesanato ou outros.",
+      "Se já souber onde o item ficará, preencha location_box no CSV ou no formulário: Caixa A03, Arara Feminino 1, Prateleira Casa 2.",
+      "Revise fragilidade, necessidade de medida e modelo de etiqueta antes de guardar o item.",
+      "Depois de criar o rascunho, revise e gere o QR/etiqueta antes de publicar.",
     ],
     ctaHref: "/admin/manual#cadastro",
     ctaLabel: "Ver checklist completo",
@@ -53,8 +54,8 @@ export const ADMIN_HELP_TOPICS = {
     bullets: [
       "O título deve ser curto e fácil de reconhecer fisicamente.",
       "A descrição deve destacar estado, benefício e qualquer detalhe importante.",
-      "Categoria, tamanho e localização ajudam a vender e separar o item sem erro.",
-      "Use a sugestão de etiqueta para escolher como identificar o produto físico.",
+      "Categoria, subcategoria, tipo específico, tamanho e localização ajudam a vender e separar o item sem erro.",
+      "Use a sugestão de etiqueta e os campos frágil/precisa medir para escolher como identificar o produto físico.",
     ],
     ctaHref: "/admin/manual#revisao",
     ctaLabel: "Ver padrão de revisão",
@@ -123,6 +124,32 @@ export const ADMIN_HELP_TOPICS = {
     ],
     ctaHref: "/admin/manual#transparencia",
     ctaLabel: "Ver boas práticas",
+  },
+  catalogoDemo: {
+    title: "Catálogo demo interno",
+    description:
+      "O catálogo demo serve para treinamento, apresentação aos coordenadores e validação do processo sem aparecer para o público.",
+    bullets: [
+      "Itens demo devem ficar marcados como is_demo/visibility admin_demo e status de rascunho/review.",
+      "Use os exemplos para mostrar categorias, fotos demonstrativas, localização física e tipos de etiqueta.",
+      "Nunca misture itens demo com itens reais publicados na loja pública.",
+      "Depois da apresentação, use o mesmo padrão para cadastrar lotes reais com fotos, local e etiqueta.",
+    ],
+    ctaHref: "/admin/manual#catalogo-demo",
+    ctaLabel: "Ver regras do demo",
+  },
+  etiquetasLote: {
+    title: "Impressão de etiquetas em lote",
+    description:
+      "A impressão em lote reduz retrabalho: selecione itens revisados ou demo, confira modelo de etiqueta e imprima em uma folha única.",
+    bullets: [
+      "Roupas usam TAG; calçados usam G; acessórios pequenos usam SAQUINHO; casa frágil usa FRAGIL; os demais usam M.",
+      "Antes de imprimir, confirme código curto, preço, local/caixa e modelo de etiqueta.",
+      "Depois de etiquetar fisicamente, o item pode avançar no processo de revisão/publicação.",
+      "Para apresentação, use o catálogo demo e selecione todos os itens visíveis.",
+    ],
+    ctaHref: "/admin/manual#etiquetas-lote",
+    ctaLabel: "Ver impressão em lote",
   },
   manual: {
     title: "Processo oficial do Bazar Online",

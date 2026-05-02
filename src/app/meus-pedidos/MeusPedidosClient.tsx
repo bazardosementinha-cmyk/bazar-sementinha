@@ -113,18 +113,6 @@ function orderDeadlineText(order: Extract<OrdersListResponse, { ok: true }>['ord
   return "Aguardando definição";
 }
 
-function buildWhatsappUrl(
-  order: Extract<OrdersListResponse, { ok: true }>['orders'][number],
-  support: Extract<OrdersListResponse, { ok: true }>['support']
-) {
-  const total = formatBRL(order.total);
-  const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
-  const text =
-    order.payment_plan === "pix_now"
-      ? `Olá! Vou enviar agora o *print/comprovante do Pix* do pedido ${order.code}. Valor: ${total}. Chave Pix: ${order.pix_key || ""} — ${support.pix_favored}.`
-      : `Olá! Vou enviar agora o *print/comprovante da caução Pix* do pedido ${order.code}. Valor da caução: ${deposit}. Chave Pix: ${order.pix_key || ""} — ${support.pix_favored}.`;
-  return `https://wa.me/${support.whatsapp}?text=${encodeURIComponent(text)}`;
-}
 
 export default function MeusPedidosClient() {
   const [email, setEmail] = useState("");
