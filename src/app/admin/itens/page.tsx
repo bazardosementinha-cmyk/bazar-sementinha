@@ -27,11 +27,18 @@ type ItemRow = {
   location_box?: string | null;
   label_template?: string | null;
   is_fragile?: boolean | null;
+  is_demo?: boolean | null;
+  demo_group?: string | null;
+  demo_sort?: number | null;
+  visibility?: string | null;
+  review_status?: string | null;
+  source?: string | null;
   reservation_lock?: ReservationLock;
 };
 
-const tabs: Array<{ key: ItemStatus | "all"; label: string }> = [
+const tabs: Array<{ key: ItemStatus | "all" | "demo"; label: string }> = [
   { key: "all", label: "Todos" },
+  { key: "demo", label: "Demo" },
   { key: "review", label: "Em revisão" },
   { key: "available", label: "Disponível" },
   { key: "reserved", label: "Reservado" },
@@ -64,6 +71,16 @@ function reservationLockText(lock?: ReservationLock) {
     : `Pedido ${lock.order_code ?? "ativo"} com reserva ativa`;
 }
 
+function isDemoItem(item: ItemRow) {
+  return (
+    item.is_demo === true ||
+    item.visibility === "admin_demo" ||
+    item.review_status === "demo" ||
+    item.source === "demo_catalog" ||
+    /^D(RP|CA|AC|CS|BR|AR|OT)\d{2}$/i.test(item.short_id)
+  );
+}
+
 export default function AdminItensPage() {
   const pathname = usePathname();
 
@@ -85,8 +102,12 @@ export default function AdminItensPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (tab === "all") return items;
-    return items.filter((it) => it.status === tab);
+    if (tab === "demo") return items.filter(isDemoItem);
+
+    const realItems = items.filter((it) => !isDemoItem(it));
+    if (tab === "all") return realItems;
+
+    return realItems.filter((it) => it.status === tab);
   }, [items, tab]);
 
   async function setStatus(short_id: string, status: ItemStatus) {
@@ -150,9 +171,11 @@ export default function AdminItensPage() {
         <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/editar/${it.short_id}`}>
           Editar
         </Link>
-        <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/i/${it.short_id}`} target="_blank">
-          Público
-        </Link>
+        {!isDemoItem(it) ? (
+          <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/i/${it.short_id}`} target="_blank">
+            Público
+          </Link>
+        ) : null}
         <Link className="rounded-lg border px-2 py-1 hover:bg-slate-50" href={`/admin/qr/${it.short_id}`} target="_blank">
           QR
         </Link>
@@ -174,7 +197,7 @@ export default function AdminItensPage() {
     const lockText = reservationLockText(it.reservation_lock);
     const isLockedForAvailable = it.reservation_lock?.locked === true;
 
-    if (it.status === "sold") {
+    if (it.status === "sold" || isDemoItem(it)) {
       return null;
     }
 
@@ -227,6 +250,8 @@ export default function AdminItensPage() {
   const isItens = pathname?.startsWith("/admin/itens");
   const isPedidos = pathname?.startsWith("/admin/pedidos");
   const isRelatorio = pathname?.startsWith("/admin/relatorio");
+  const isCatalogoDemo = pathname?.startsWith("/admin/catalogo-demo");
+  const isEtiquetas = pathname?.startsWith("/admin/etiquetas");
   const isManual = pathname?.startsWith("/admin/manual");
 
   return (
@@ -241,18 +266,30 @@ export default function AdminItensPage() {
         <Link href="/admin/relatorio" className={pillClass(!!isRelatorio)}>
           Relatório
         </Link>
+        <Link href="/admin/catalogo-demo" className={pillClass(!!isCatalogoDemo)}>
+          Catálogo Demo
+        </Link>
+        <Link href="/admin/etiquetas/lote" className={pillClass(!!isEtiquetas)}>
+          Etiquetas em lote
+        </Link>
         <Link href="/admin/manual" className={pillClass(!!isManual)}>
           Manual
         </Link>
       </div>
 
-      <p className="mt-2 text-slate-600">Gerencie status (Disponível / Reservado / Vendido).</p>
+      <p className="mt-2 text-slate-600">Gerencie status (Disponível / Reservado / Vendido). Itens demo ficam separados na aba Catálogo Demo/Demo para não confundir com rascunhos reais.</p>
 
       <ContextHelp topic={ADMIN_HELP_TOPICS.itens} className="mt-4" />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link href="/admin/importar" className={pillClass(false)}>
           Criar
+        </Link>
+        <Link href="/admin/catalogo-demo" className={pillClass(false)}>
+          Catálogo demo
+        </Link>
+        <Link href="/admin/etiquetas/lote" className={pillClass(false)}>
+          Imprimir etiquetas
         </Link>
 
         {tabs.map((t) => (
@@ -276,6 +313,7 @@ export default function AdminItensPage() {
                   {it.location_box ? `Local: ${it.location_box}` : "Sem local informado"}
                   {it.label_template ? ` • Etiqueta ${it.label_template}` : ""}
                   {it.is_fragile ? " • Frágil" : ""}
+                  {isDemoItem(it) ? " • DEMO" : ""}
                 </div>
               </div>
               <div className="text-right">
@@ -323,6 +361,7 @@ export default function AdminItensPage() {
                     {it.location_box ? `Local: ${it.location_box}` : "Sem local informado"}
                     {it.label_template ? ` • Etiqueta ${it.label_template}` : ""}
                     {it.is_fragile ? " • Frágil" : ""}
+                  {isDemoItem(it) ? " • DEMO" : ""}
                   </div>
                 </td>
                 <td className="px-3 py-2">{it.category}</td>

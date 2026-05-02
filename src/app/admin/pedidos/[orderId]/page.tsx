@@ -81,6 +81,26 @@ function statusLabel(status: string) {
   }
 }
 
+function isOrderClosedForReminders(status: string) {
+  return ["paid", "delivered", "cancelled", "canceled", "expired"].includes(status);
+}
+
+function inactiveReminderReason(status: string) {
+  switch (status) {
+    case "paid":
+      return "Inativo — pedido pago";
+    case "delivered":
+      return "Inativo — pedido entregue";
+    case "cancelled":
+    case "canceled":
+      return "Inativo — pedido cancelado";
+    case "expired":
+      return "Inativo — pedido expirado";
+    default:
+      return null;
+  }
+}
+
 async function copy(text: string) {
   await navigator.clipboard.writeText(text);
 }
@@ -120,6 +140,8 @@ export default function PedidoDetalhePage() {
   }, [items]);
 
   const scheduledReminders = useMemo(() => sortOrderReminders(reminders), [reminders]);
+  const remindersAreInactive = order ? isOrderClosedForReminders(order.status) : false;
+  const remindersInactiveReason = order ? inactiveReminderReason(order.status) : null;
 
   const initialMsg = useMemo(() => {
     if (!order) return "";
@@ -131,7 +153,7 @@ export default function PedidoDetalhePage() {
       `📍 Retirada: *${pickupFullAddress(order)}*\n\n` +
       `Itens:\n${lines.join("\n")}\n\n` +
       `Prazo: reserve até *${brDateTime(order.expires_at)}*.\n` +
-      `Por favor, envie o comprovante aqui no WhatsApp após o pagamento e combinamos a retirada no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.\n` +
+      `Por favor, envie o comprovante pelo acompanhamento do pedido no site após o pagamento. Assim a equipe recebe o aviso automaticamente e combinamos a retirada no Tucxa2.\n` +
       `Obrigado(a)!`
     );
   }, [order, lines]);
@@ -143,7 +165,7 @@ export default function PedidoDetalhePage() {
       `Seu pedido *${order.code}* segue reservado.\n` +
       `Prazo final: *${brDateTime(order.expires_at)}*.\n\n` +
       `Pix (chave): ${order.pix_key}\n` +
-      `Após pagar, envie o comprovante aqui no WhatsApp. Obrigado(a)!`
+      `Após pagar, envie o comprovante pelo acompanhamento do pedido no site. Obrigado(a)!`
     );
   }, [order]);
 
@@ -155,7 +177,7 @@ export default function PedidoDetalhePage() {
       `Prazo final: *${brDateTime(order.expires_at)}*.\n\n` +
       `Pix (chave): ${order.pix_key}\n` +
       `Se o pagamento não for feito até o prazo, o pedido será cancelado e os itens voltam para o site.\n` +
-      `Após pagar, envie o comprovante aqui no WhatsApp. Obrigado(a)!`
+      `Após pagar, envie o comprovante pelo acompanhamento do pedido no site. Obrigado(a)!`
     );
   }, [order]);
 
@@ -312,7 +334,16 @@ export default function PedidoDetalhePage() {
 
       <div className="mt-6 rounded-2xl border bg-white p-5">
         <div className="font-semibold">Lembretes agendados (8h e 16h)</div>
-        <p className="mt-1 text-sm text-slate-600">O sistema agenda; você copia e envia no WhatsApp e marca como enviado.</p>
+        <p className="mt-1 text-sm text-slate-600">
+          {remindersAreInactive
+            ? "Pagamento concluído ou pedido encerrado: lembretes pendentes ficam apenas como histórico e não serão enviados automaticamente."
+            : "O sistema envia os lembretes automaticamente quando a rota de automação roda. Use os botões apenas para controle manual quando necessário."}
+        </p>
+        {remindersAreInactive && remindersInactiveReason ? (
+          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-900">
+            {remindersInactiveReason}. Nenhum lembrete pendente será enviado para este pedido.
+          </div>
+        ) : null}
 
         <div className="mt-4 overflow-hidden rounded-2xl border">
           <table className="w-full text-sm">
@@ -329,23 +360,31 @@ export default function PedidoDetalhePage() {
                 <tr key={r.id} className="border-t">
                   <td className="px-3 py-2">{getReminderLabel(r.kind)}</td>
                   <td className="px-3 py-2 text-xs text-slate-600">{brDateTime(r.due_at)}</td>
-                  <td className="px-3 py-2 text-xs">{r.sent_at ? `Sim (${brDateTime(r.sent_at)})` : "Não"}</td>
+                  <td className="px-3 py-2 text-xs">
+                    {r.sent_at ? `Sim (${brDateTime(r.sent_at)})` : remindersAreInactive ? remindersInactiveReason : "Não"}
+                  </td>
                   <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => void copy(r.kind === "remind_8h" ? remind8 : remind16)}
-                        className="rounded-lg border bg-white px-2 py-1 hover:bg-slate-50"
-                      >
-                        Copiar msg
-                      </button>
-                      <button
-                        disabled={!!r.sent_at || busy === r.id}
-                        onClick={() => void markReminderSent(r.id)}
-                        className="rounded-lg bg-slate-900 px-2 py-1 text-white hover:bg-black disabled:opacity-60"
-                      >
-                        Marcar enviado
-                      </button>
-                    </div>
+                    {remindersAreInactive && !r.sent_at ? (
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                        Não será enviado
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => void copy(r.kind === "remind_8h" ? remind8 : remind16)}
+                          className="rounded-lg border bg-white px-2 py-1 hover:bg-slate-50"
+                        >
+                          Copiar msg
+                        </button>
+                        <button
+                          disabled={!!r.sent_at || busy === r.id}
+                          onClick={() => void markReminderSent(r.id)}
+                          className="rounded-lg bg-slate-900 px-2 py-1 text-white hover:bg-black disabled:opacity-60"
+                        >
+                          Marcar enviado
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

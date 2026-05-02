@@ -24,6 +24,7 @@ export default async function Page({
     .from("items")
     .select("category, status")
     .eq("status", "available")
+    .eq("is_demo", false)
     .order("category", { ascending: true });
 
   const categories = Array.from(

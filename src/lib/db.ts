@@ -34,6 +34,10 @@ export type Item = {
   label_template?: string | null;
   review_status?: string | null;
   attributes_json?: Record<string, unknown> | null;
+  is_demo?: boolean | null;
+  demo_group?: string | null;
+  demo_sort?: number | null;
+  visibility?: string | null;
   created_at: string;
 };
 
@@ -131,6 +135,7 @@ export async function getPublicItems(params?: { category?: string; status?: Item
   let q = supabase
     .from("items")
     .select("id,short_id,title,category,condition,size,price,price_from,status,created_at")
+    .eq("is_demo", false)
     .order("created_at", { ascending: false });
 
   if (params?.status && params.status !== "all") {

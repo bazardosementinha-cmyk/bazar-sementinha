@@ -17,6 +17,12 @@ type ItemRow = {
   location_box: string | null;
   label_template: string | null;
   is_fragile: boolean | null;
+  is_demo: boolean | null;
+  demo_group: string | null;
+  demo_sort: number | null;
+  visibility: string | null;
+  review_status: string | null;
+  source: string | null;
 };
 
 type OrderItemRow = {
@@ -72,7 +78,9 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("items")
-    .select("id,short_id,title,category,condition,price,price_from,status,created_at,location_box,label_template,is_fragile")
+    .select("id,short_id,title,category,condition,price,price_from,status,created_at,location_box,label_template,is_fragile,is_demo,demo_group,demo_sort,visibility,review_status,source")
+    .order("is_demo", { ascending: false })
+    .order("demo_sort", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
