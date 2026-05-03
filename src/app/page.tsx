@@ -88,19 +88,11 @@ export default async function Page({
     <>
       <TopBar />
       <Shell>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Catálogo</h1>
-            <p className="mt-1 text-slate-600">
-              Escolha itens e reserve pelo site. O comprovante do Pix é enviado no acompanhamento do pedido; o WhatsApp fica para dúvidas e retirada.
-            </p>
-          </div>
-          <Link
-            href="#catalogo"
-            className="inline-flex rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-          >
-            Contribuir agora
-          </Link>
+        <div>
+          <h1 className="text-2xl font-bold">Catálogo</h1>
+          <p className="mt-1 text-slate-600">
+            Escolha itens e reserve pelo site. O comprovante do Pix é enviado no acompanhamento do pedido; o WhatsApp fica para dúvidas e retirada.
+          </p>
         </div>
 
         <PublicImpactBanner />

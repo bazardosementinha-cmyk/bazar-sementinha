@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PUBLIC_PROCESS_COPY } from "@/lib/public-copy";
 
 export default function PublicHowItWorks() {
@@ -19,6 +20,12 @@ export default function PublicHowItWorks() {
               </li>
             ))}
           </ul>
+          <Link
+            href="#catalogo"
+            className="mt-4 inline-flex rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+          >
+            Contribuir agora
+          </Link>
         </div>
 
         <div className="grid gap-3">
