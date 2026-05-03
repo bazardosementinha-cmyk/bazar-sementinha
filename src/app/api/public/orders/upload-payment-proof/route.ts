@@ -11,16 +11,15 @@ import {
   validatePaymentProofFile,
 } from "@/lib/payment-proof";
 import { normalizeWhatsApp } from "@/lib/order-links";
+import { sendMail } from "@/lib/mail";
+import { buildPaymentProofSubmittedEmail, type MailOrder, type MailOrderItem } from "@/lib/order-notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type OrderRow = {
+type OrderRow = MailOrder & {
   id: string;
-  code: string;
   status: string;
-  customer_email: string | null;
-  customer_whatsapp: string | null;
   payment_status?: string | null;
 };
 
@@ -68,7 +67,7 @@ export async function POST(req: Request) {
 
   const { data: orderData, error: orderErr } = await s
     .from("orders")
-    .select("id,code,status,customer_email,customer_whatsapp,payment_status")
+    .select("*")
     .eq("code", code)
     .maybeSingle();
 
@@ -108,6 +107,27 @@ export async function POST(req: Request) {
     .eq("id", order.id);
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+
+  const { data: itemRows } = await s
+    .from("order_items")
+    .select("item_short_id,item_title,price")
+    .eq("order_id", order.id)
+    .order("id", { ascending: true });
+
+  if (order.customer_email) {
+    const mail = buildPaymentProofSubmittedEmail(order, (itemRows ?? []) as MailOrderItem[]);
+    const mailResult = await sendMail({
+      to: order.customer_email,
+      cc: mail.cc,
+      subject: mail.subject,
+      text: mail.text,
+      html: mail.html,
+    });
+
+    if (!mailResult.ok) {
+      console.error("[payment-proof] Falha ao enviar e-mail de comprovante recebido", mailResult);
+    }
+  }
 
   return NextResponse.json({ ok: true, payment_status: "submitted", payment_proof_uploaded_at: uploadedAt });
 }

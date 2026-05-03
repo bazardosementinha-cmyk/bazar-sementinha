@@ -175,7 +175,7 @@ export default function PedidoDetalhePage() {
       `📍 Retirada: *${pickupFullAddress(order)}*\n\n` +
       `Itens:\n${lines.join("\n")}\n\n` +
       `Prazo: reserve até *${brDateTime(order.expires_at)}*.\n` +
-      `Por favor, envie o comprovante aqui no WhatsApp após o pagamento e combinamos a retirada no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.\n` +
+      `Por favor, peça ao cliente para enviar o comprovante pela tela de acompanhamento do pedido. Depois da conferência, a equipe combina a retirada no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.\n` +
       `Obrigado(a)!`
     );
   }, [order, lines]);
@@ -187,7 +187,7 @@ export default function PedidoDetalhePage() {
       `Seu pedido *${order.code}* segue reservado.\n` +
       `Prazo final: *${brDateTime(order.expires_at)}*.\n\n` +
       `Pix (chave): ${order.pix_key}\n` +
-      `Após pagar, envie o comprovante aqui no WhatsApp. Obrigado(a)!`
+      `Após pagar, envie o comprovante pela tela de acompanhamento do pedido. Obrigado(a)!`
     );
   }, [order]);
 
@@ -199,7 +199,7 @@ export default function PedidoDetalhePage() {
       `Prazo final: *${brDateTime(order.expires_at)}*.\n\n` +
       `Pix (chave): ${order.pix_key}\n` +
       `Se o pagamento não for feito até o prazo, o pedido será cancelado e os itens voltam para o site.\n` +
-      `Após pagar, envie o comprovante aqui no WhatsApp. Obrigado(a)!`
+      `Após pagar, envie o comprovante pela tela de acompanhamento do pedido. Obrigado(a)!`
     );
   }, [order]);
 
@@ -299,11 +299,11 @@ export default function PedidoDetalhePage() {
 
           <div className="mt-5 flex flex-wrap gap-2">
             <button
-              disabled={busy === "mark_paid" || (order.status !== "reserved" && order.status !== "paid")}
+              disabled={busy === "mark_paid" || order.status === "paid" || order.payment_status === "confirmed" || order.status === "delivered" || order.status === "cancelled" || order.status === "canceled"}
               onClick={() => void action("mark_paid")}
               className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
             >
-Confirmar pagamento
+{order.status === "paid" || order.payment_status === "confirmed" ? "Pagamento confirmado" : "Confirmar pagamento"}
             </button>
             <button
               disabled={busy === "mark_delivered" || (order.status !== "paid" && order.status !== "reserved")}
