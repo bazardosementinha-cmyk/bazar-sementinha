@@ -10,7 +10,7 @@ export function Shell({ children, className }: { children: React.ReactNode; clas
 export function TopBar({ right }: { right?: React.ReactNode }) {
   return (
     <div className="sticky top-0 z-10 border-b bg-[#faf7f2]/90 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
         <Link href="/" className="flex min-w-0 items-center gap-3">
           <Image
             src="/brand/logo-sementinha.jpg"
@@ -27,11 +27,19 @@ export function TopBar({ right }: { right?: React.ReactNode }) {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
-          <Link href="/meus-pedidos" className="rounded-full border px-4 py-2 text-sm hover:bg-neutral-50">
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href="/meus-pedidos" className="rounded-full border bg-white px-3 py-2 text-xs font-medium hover:bg-neutral-50 sm:px-4 sm:text-sm">
             Meus pedidos
           </Link>
           <CartButton />
+          <Link
+            href="/admin/login"
+            className="rounded-full border bg-white px-3 py-2 text-xs font-medium hover:bg-neutral-50 sm:px-4 sm:text-sm"
+            title="Entrar como administrador"
+          >
+            <span className="hidden sm:inline">Entrar como administrador</span>
+            <span className="sm:hidden">Admin</span>
+          </Link>
           {right}
         </div>
       </div>

@@ -8,8 +8,8 @@ export default function PublicHowItWorks() {
         {PUBLIC_PROCESS_COPY.eyebrow}
       </div>
 
-      <div className="mt-3 grid gap-4 lg:grid-cols-[1.1fr_1fr] lg:items-start">
-        <div>
+      <div className="mt-3 grid gap-5 lg:grid-cols-[1.1fr_1fr] lg:items-start">
+        <div className="min-w-0">
           <h2 className="text-2xl font-extrabold tracking-tight text-slate-950">{PUBLIC_PROCESS_COPY.title}</h2>
           <p className="mt-2 text-slate-600">{PUBLIC_PROCESS_COPY.description}</p>
 
@@ -20,12 +20,15 @@ export default function PublicHowItWorks() {
               </li>
             ))}
           </ul>
-          <Link
-            href="#catalogo"
-            className="mt-4 inline-flex rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
-          >
-            Contribuir agora
-          </Link>
+
+          <div className="mt-5">
+            <Link
+              href="#catalogo"
+              className="inline-flex w-fit rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
+            >
+              Contribuir agora
+            </Link>
+          </div>
         </div>
 
         <div className="grid gap-3">
