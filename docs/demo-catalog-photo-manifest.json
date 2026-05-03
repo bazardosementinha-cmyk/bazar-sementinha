@@ -1,0 +1,212 @@
+[
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP01",
+    "position": 1,
+    "local_file": "public/demo-catalog-categories/roupas/DRP01/01.png",
+    "flat_legacy_file": "public/demo-catalog/DRP01-01.png",
+    "storage_path": "demo-catalog/roupas/DRP01/01.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP01",
+    "position": 2,
+    "local_file": "public/demo-catalog-categories/roupas/DRP01/02.png",
+    "flat_legacy_file": "public/demo-catalog/DRP01-02.png",
+    "storage_path": "demo-catalog/roupas/DRP01/02.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP01",
+    "position": 3,
+    "local_file": "public/demo-catalog-categories/roupas/DRP01/03.png",
+    "flat_legacy_file": "public/demo-catalog/DRP01-03.png",
+    "storage_path": "demo-catalog/roupas/DRP01/03.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP02",
+    "position": 1,
+    "local_file": "public/demo-catalog-categories/roupas/DRP02/01.png",
+    "flat_legacy_file": "public/demo-catalog/DRP02-01.png",
+    "storage_path": "demo-catalog/roupas/DRP02/01.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP02",
+    "position": 2,
+    "local_file": "public/demo-catalog-categories/roupas/DRP02/02.png",
+    "flat_legacy_file": "public/demo-catalog/DRP02-02.png",
+    "storage_path": "demo-catalog/roupas/DRP02/02.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP02",
+    "position": 3,
+    "local_file": "public/demo-catalog-categories/roupas/DRP02/03.png",
+    "flat_legacy_file": "public/demo-catalog/DRP02-03.png",
+    "storage_path": "demo-catalog/roupas/DRP02/03.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP03",
+    "position": 1,
+    "local_file": "public/demo-catalog-categories/roupas/DRP03/01.png",
+    "flat_legacy_file": "public/demo-catalog/DRP03-01.png",
+    "storage_path": "demo-catalog/roupas/DRP03/01.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP03",
+    "position": 2,
+    "local_file": "public/demo-catalog-categories/roupas/DRP03/02.png",
+    "flat_legacy_file": "public/demo-catalog/DRP03-02.png",
+    "storage_path": "demo-catalog/roupas/DRP03/02.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP03",
+    "position": 3,
+    "local_file": "public/demo-catalog-categories/roupas/DRP03/03.png",
+    "flat_legacy_file": "public/demo-catalog/DRP03-03.png",
+    "storage_path": "demo-catalog/roupas/DRP03/03.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP04",
+    "position": 1,
+    "local_file": "public/demo-catalog-categories/roupas/DRP04/01.png",
+    "flat_legacy_file": "public/demo-catalog/DRP04-01.png",
+    "storage_path": "demo-catalog/roupas/DRP04/01.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP04",
+    "position": 2,
+    "local_file": "public/demo-catalog-categories/roupas/DRP04/02.png",
+    "flat_legacy_file": "public/demo-catalog/DRP04-02.png",
+    "storage_path": "demo-catalog/roupas/DRP04/02.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP04",
+    "position": 3,
+    "local_file": "public/demo-catalog-categories/roupas/DRP04/03.png",
+    "flat_legacy_file": "public/demo-catalog/DRP04-03.png",
+    "storage_path": "demo-catalog/roupas/DRP04/03.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP05",
+    "position": 1,
+    "local_file": "public/demo-catalog-categories/roupas/DRP05/01.png",
+    "flat_legacy_file": "public/demo-catalog/DRP05-01.png",
+    "storage_path": "demo-catalog/roupas/DRP05/01.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP05",
+    "position": 2,
+    "local_file": "public/demo-catalog-categories/roupas/DRP05/02.png",
+    "flat_legacy_file": "public/demo-catalog/DRP05-02.png",
+    "storage_path": "demo-catalog/roupas/DRP05/02.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP05",
+    "position": 3,
+    "local_file": "public/demo-catalog-categories/roupas/DRP05/03.png",
+    "flat_legacy_file": "public/demo-catalog/DRP05-03.png",
+    "storage_path": "demo-catalog/roupas/DRP05/03.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP06",
+    "position": 1,
+    "local_file": "public/demo-catalog-categories/roupas/DRP06/01.png",
+    "flat_legacy_file": "public/demo-catalog/DRP06-01.png",
+    "storage_path": "demo-catalog/roupas/DRP06/01.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP06",
+    "position": 2,
+    "local_file": "public/demo-catalog-categories/roupas/DRP06/02.png",
+    "flat_legacy_file": "public/demo-catalog/DRP06-02.png",
+    "storage_path": "demo-catalog/roupas/DRP06/02.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP06",
+    "position": 3,
+    "local_file": "public/demo-catalog-categories/roupas/DRP06/03.png",
+    "flat_legacy_file": "public/demo-catalog/DRP06-03.png",
+    "storage_path": "demo-catalog/roupas/DRP06/03.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP07",
+    "position": 1,
+    "local_file": "public/demo-catalog-categories/roupas/DRP07/01.png",
+    "flat_legacy_file": "public/demo-catalog/DRP07-01.png",
+    "storage_path": "demo-catalog/roupas/DRP07/01.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP07",
+    "position": 2,
+    "local_file": "public/demo-catalog-categories/roupas/DRP07/02.png",
+    "flat_legacy_file": "public/demo-catalog/DRP07-02.png",
+    "storage_path": "demo-catalog/roupas/DRP07/02.png"
+  },
+  {
+    "category_slug": "roupas",
+    "category_label": "Roupas",
+    "demo_group": "Roupas - Etiqueta TAG",
+    "short_id": "DRP07",
+    "position": 3,
+    "local_file": "public/demo-catalog-categories/roupas/DRP07/03.png",
+    "flat_legacy_file": "public/demo-catalog/DRP07-03.png",
+    "storage_path": "demo-catalog/roupas/DRP07/03.png"
+  }
+]

@@ -26,9 +26,10 @@ export const ADMIN_HELP_TOPICS = {
       "O cadastro correto evita venda errada, item perdido no estoque e dúvida no momento da retirada.",
     bullets: [
       "Fotografe frente, detalhe, etiqueta/tamanho e defeitos, se houver.",
-      "Use categoria e tamanho com atenção: roupa, calçado, acessório, casa, brinquedo, artesanato ou outros.",
-      "Preencha o local/caixa antes de publicar para facilitar a separação do pedido.",
-      "Depois de criar o rascunho, revise e gere o QR/etiqueta antes de guardar o item.",
+      "Use categoria, subcategoria e tipo específico com atenção: roupa, calçado, acessório, casa, brinquedo, artesanato ou outros.",
+      "Se já souber onde o item ficará, preencha location_box no CSV ou no formulário: Caixa A03, Arara Feminino 1, Prateleira Casa 2.",
+      "Revise fragilidade, necessidade de medida e modelo de etiqueta antes de guardar o item.",
+      "Depois de criar o rascunho, revise e gere o QR/etiqueta antes de publicar.",
     ],
     ctaHref: "/admin/manual#cadastro",
     ctaLabel: "Ver checklist completo",
@@ -38,9 +39,10 @@ export const ADMIN_HELP_TOPICS = {
     description:
       "A lista de itens é o ponto de controle: revise rascunhos, publique somente itens prontos e proteja reservas ativas.",
     bullets: [
-      "Rascunho: ainda precisa de revisão, etiqueta ou conferência.",
+      "Rascunho: ainda precisa de revisão, etiqueta ou conferência; itens demo ficam separados para não confundir com itens reais.",
       "Disponível: aparece para venda no site.",
       "Reservado: não deve voltar para venda enquanto houver pedido ativo.",
+      "Catálogo demo: serve para treinamento/apresentação e não aparece para o público.",
       "Vendido: use somente depois de pagamento/retirada confirmados conforme o combinado.",
     ],
     ctaHref: "/admin/manual#status",
@@ -53,8 +55,8 @@ export const ADMIN_HELP_TOPICS = {
     bullets: [
       "O título deve ser curto e fácil de reconhecer fisicamente.",
       "A descrição deve destacar estado, benefício e qualquer detalhe importante.",
-      "Categoria, tamanho e localização ajudam a vender e separar o item sem erro.",
-      "Use a sugestão de etiqueta para escolher como identificar o produto físico.",
+      "Categoria, subcategoria, tipo específico, tamanho e localização ajudam a vender e separar o item sem erro.",
+      "Use a sugestão de etiqueta e os campos frágil/precisa medir para escolher como identificar o produto físico.",
     ],
     ctaHref: "/admin/manual#revisao",
     ctaLabel: "Ver padrão de revisão",
@@ -92,8 +94,9 @@ export const ADMIN_HELP_TOPICS = {
     bullets: [
       "Reserva ativa não deve liberar o item para outro comprador antes do prazo/cancelamento.",
       "Use o código do pedido e o código do item para localizar rapidamente na caixa/local informado.",
-      "Após pagamento confirmado, mantenha o registro atualizado para transparência.",
+      "Quando o cliente enviar comprovante pelo pedido, confira valor, data e favorecido antes de marcar como pago.",
       "Cancelamentos devem devolver o item ao fluxo correto somente quando a reserva realmente expirar.",
+      "Se o pedido estiver pago ou entregue, os lembretes agendados permanecem como histórico, mas não são enviados.",
     ],
     ctaHref: "/admin/manual#venda",
     ctaLabel: "Ver fluxo de venda",
@@ -104,8 +107,8 @@ export const ADMIN_HELP_TOPICS = {
       "A página do pedido é o checklist de atendimento: confirmar pagamento, separar itens pelo código e registrar a conclusão.",
     bullets: [
       "Sempre confira os itens do pedido contra os códigos físicos antes da retirada.",
-      "Priorize o comprovante do Pix para confirmar a reserva e evitar retrabalho.",
-      "Use WhatsApp para alinhar retirada e orientar o comprador quando necessário.",
+      "Comprovante enviado no site deve ser conferido antes de confirmar pagamento.",
+      "Use WhatsApp apenas para dúvidas e retirada; o comprovante deve ficar registrado no pedido.",
       "Finalize como entregue/vendido somente depois da conferência completa.",
     ],
     ctaHref: "/admin/manual#separacao",
@@ -123,6 +126,32 @@ export const ADMIN_HELP_TOPICS = {
     ],
     ctaHref: "/admin/manual#transparencia",
     ctaLabel: "Ver boas práticas",
+  },
+  catalogoDemo: {
+    title: "Catálogo demo interno",
+    description:
+      "O catálogo demo serve para treinamento, apresentação aos coordenadores e validação do processo sem aparecer para o público.",
+    bullets: [
+      "Itens demo devem ficar marcados como is_demo/visibility admin_demo e status de rascunho/review.",
+      "Use os exemplos para mostrar categorias, fotos demonstrativas, localização física e tipos de etiqueta.",
+      "Nunca misture itens demo com itens reais publicados na loja pública.",
+      "Depois da apresentação, use o mesmo padrão para cadastrar lotes reais com fotos, local e etiqueta.",
+    ],
+    ctaHref: "/admin/manual#catalogo-demo",
+    ctaLabel: "Ver regras do demo",
+  },
+  etiquetasLote: {
+    title: "Impressão de etiquetas em lote",
+    description:
+      "A impressão em lote reduz retrabalho: selecione itens revisados ou demo, confira modelo de etiqueta e imprima em uma folha única.",
+    bullets: [
+      "Roupas usam TAG; calçados usam G; acessórios pequenos usam SAQUINHO; casa frágil usa FRAGIL; os demais usam M.",
+      "Antes de imprimir, confirme código curto, preço, local/caixa e modelo de etiqueta.",
+      "Depois de etiquetar fisicamente, o item pode avançar no processo de revisão/publicação.",
+      "Para apresentação, use o catálogo demo e selecione todos os itens visíveis.",
+    ],
+    ctaHref: "/admin/manual#etiquetas-lote",
+    ctaLabel: "Ver impressão em lote",
   },
   manual: {
     title: "Processo oficial do Bazar Online",

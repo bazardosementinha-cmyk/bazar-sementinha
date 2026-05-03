@@ -116,7 +116,8 @@ export async function GET(req: Request) {
   const { data, error } = await supabase
     .from("items")
     .select("id,short_id,title,category,condition,price,price_from,status,created_at,size")
-    .in("short_id", ids);
+    .in("short_id", ids)
+    .eq("is_demo", false);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
