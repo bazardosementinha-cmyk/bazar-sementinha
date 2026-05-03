@@ -290,12 +290,28 @@ export function getDemoCatalogGroups() {
   return Array.from(map.entries()).map(([group, items]) => ({ group, items }));
 }
 
+export function demoCategoryKeyFromShortId(shortId: string) {
+  const normalized = shortId.trim().toUpperCase();
+
+  if (normalized.startsWith("DRP")) return "roupas";
+  if (normalized.startsWith("DCA")) return "calcados";
+  if (normalized.startsWith("DAC")) return "acessorios";
+  if (normalized.startsWith("DCS")) return "casa";
+  if (normalized.startsWith("DBR")) return "brinquedos";
+  if (normalized.startsWith("DAR")) return "artesanatos";
+  if (normalized.startsWith("DOT")) return "outros";
+
+  return "outros";
+}
+
 export function demoPhotoAssetPath(shortId: string, position: number) {
-  return `/demo-catalog/${shortId}-${String(position).padStart(2, "0")}.png`;
+  const categoryKey = demoCategoryKeyFromShortId(shortId);
+  return `/demo-catalog-categories/${categoryKey}/${shortId}/${String(position).padStart(2, "0")}.png`;
 }
 
 export function demoPhotoStoragePath(shortId: string, position: number) {
-  return `demo-catalog/${shortId}-${String(position).padStart(2, "0")}.png`;
+  const categoryKey = demoCategoryKeyFromShortId(shortId);
+  return `demo-catalog-categories/${categoryKey}/${shortId}/${String(position).padStart(2, "0")}.png`;
 }
 
 export function demoPhotoDataUri(item: Pick<DemoCatalogItem, "category" | "item_type" | "label_template">, index: number) {
