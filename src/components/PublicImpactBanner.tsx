@@ -1,12 +1,22 @@
+import Link from "next/link";
 import { PUBLIC_IMPACT_COPY } from "@/lib/public-copy";
 
 export default function PublicImpactBanner() {
   return (
     <section className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
-      <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-        <div>
+      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+        <div className="min-w-0">
           <h2 className="text-xl font-extrabold">{PUBLIC_IMPACT_COPY.title}</h2>
           <p className="mt-2 text-sm leading-6 text-emerald-900">{PUBLIC_IMPACT_COPY.description}</p>
+
+          <div className="mt-5">
+            <Link
+              href="#catalogo"
+              className="inline-flex w-fit rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
+            >
+              Contribuir agora
+            </Link>
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">

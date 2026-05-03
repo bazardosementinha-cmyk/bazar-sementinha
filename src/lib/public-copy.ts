@@ -13,12 +13,12 @@ export const PUBLIC_PROCESS_COPY = {
       text: "Ao criar o pedido, o item fica protegido por um prazo para evitar venda duplicada.",
     },
     {
-      title: "Envie o comprovante",
-      text: "O fluxo é comprovante-first: faça o Pix, envie o print pelo WhatsApp e agilize a confirmação.",
+      title: "Envie o comprovante no pedido",
+      text: "Faça o Pix e anexe o comprovante na tela de acompanhamento do pedido. A equipe confere antes de confirmar o pagamento.",
     },
     {
       title: "Retire com segurança",
-      text: "A equipe separa o item pelo código interno e combina a retirada no Tucxa2.",
+      text: "Após a conferência, a equipe combina a retirada no Tucxa2 pelo canal de atendimento.",
     },
   ],
   trustBullets: [
@@ -39,7 +39,7 @@ export const PUBLIC_IMPACT_COPY = {
     },
     {
       title: "Tempo",
-      text: "O pedido fica organizado no site e a retirada é combinada pelo WhatsApp, sem perder a referência do item.",
+      text: "O pedido fica organizado no site, o comprovante é anexado no acompanhamento e a retirada é combinada com a equipe.",
     },
     {
       title: "Confiança",

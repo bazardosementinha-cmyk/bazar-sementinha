@@ -10,6 +10,28 @@ function isGuloseimas(cat: string | null | undefined) {
   return (cat ?? "").trim().toLowerCase() === "guloseimas";
 }
 
+const PUBLIC_CATEGORY_ORDER = [
+  "Roupas",
+  "Calçados",
+  "Acessórios",
+  "Casa",
+  "Brinquedos",
+  "Artesanatos",
+  "Outros",
+] as const;
+
+function normalizeCategory(value: string | null | undefined) {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function categoryHref(category: string) {
+  return `/?category=${encodeURIComponent(category)}`;
+}
+
 export default async function Page({
   searchParams,
 }: {
@@ -24,11 +46,21 @@ export default async function Page({
     .from("items")
     .select("category, status")
     .eq("status", "available")
+    .eq("is_demo", false)
     .order("category", { ascending: true });
 
-  const categories = Array.from(
-    new Set((catRows ?? []).map((r) => (r as { category?: string }).category).filter((c): c is string => !!c && !isGuloseimas(c))),
-  ).sort((a, b) => a.localeCompare(b));
+  const categoryCounts = new Map<string, number>();
+  for (const row of catRows ?? []) {
+    const rawCategory = (row as { category?: string }).category;
+    if (!rawCategory || isGuloseimas(rawCategory)) continue;
+    const normalized = normalizeCategory(rawCategory);
+    categoryCounts.set(normalized, (categoryCounts.get(normalized) ?? 0) + 1);
+  }
+
+  const categories = PUBLIC_CATEGORY_ORDER.map((label) => ({
+    label,
+    count: categoryCounts.get(normalizeCategory(label)) ?? 0,
+  }));
 
   const items = await getPublicItems({
     status: "available",
@@ -56,16 +88,18 @@ export default async function Page({
     <>
       <TopBar />
       <Shell>
-        <h1 className="text-2xl font-bold">Catálogo</h1>
-        <p className="mt-1 text-slate-600">
-          Escolha itens e reserve pelo site. Atendimento e confirmação pelo WhatsApp.
-        </p>
+        <div>
+          <h1 className="text-2xl font-bold">Catálogo</h1>
+          <p className="mt-1 text-slate-600">
+            Escolha itens e reserve pelo site. O comprovante do Pix é enviado no acompanhamento do pedido; o WhatsApp fica para dúvidas e retirada.
+          </p>
+        </div>
 
         <PublicImpactBanner />
         <PublicHowItWorks />
 
         {/* Category filters */}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div id="catalogo" className="mt-4 flex flex-wrap gap-2">
           <Link
             href="/"
             className={
@@ -76,17 +110,17 @@ export default async function Page({
           >
             Todas
           </Link>
-          {categories.map((c) => (
+          {categories.map((category) => (
             <Link
-              key={c}
-              href={`/?category=${encodeURIComponent(c)}`}
+              key={category.label}
+              href={categoryHref(category.label)}
               className={
-                selectedCategory === c
+                selectedCategory === category.label
                   ? "rounded-full bg-slate-900 px-3 py-1 text-sm text-white"
                   : "rounded-full border bg-white px-3 py-1 text-sm hover:bg-slate-50"
               }
             >
-              {c}
+              {category.label} ({category.count})
             </Link>
           ))}
         </div>

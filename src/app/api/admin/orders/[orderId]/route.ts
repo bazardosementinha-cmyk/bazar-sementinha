@@ -4,6 +4,8 @@ import { requireAdmin } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/service";
 import { sortOrderReminders } from "@/lib/order-reminders";
 import { createPaymentProofSignedUrl } from "@/lib/payment-proof";
+import { sendMail } from "@/lib/mail";
+import { buildPaymentConfirmedEmail, type MailOrder, type MailOrderItem } from "@/lib/order-notifications";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -146,16 +148,39 @@ export async function POST(req: Request, ctx: { params: Promise<{ orderId: strin
     return NextResponse.json({ ok: true });
   }
 
-  const { data: oi, error: oiErr } = await s.from("order_items").select("item_id").eq("order_id", order.id);
+  const { data: oi, error: oiErr } = await s.from("order_items").select("item_id,item_short_id,item_title,price").eq("order_id", order.id);
   if (oiErr) return NextResponse.json({ error: oiErr.message }, { status: 500 });
   const itemIds = (oi ?? []).map((r) => (r as { item_id: string }).item_id);
 
   if (parsed.data.action === "mark_paid") {
+    if (order.status === "paid" || order.payment_status === "confirmed") {
+      return NextResponse.json({ ok: true, already_confirmed: true });
+    }
+
     const { error } = await s
       .from("orders")
       .update({ status: "paid", payment_status: "confirmed", paid_at: now })
       .eq("id", order.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    if (order.customer_email) {
+      const mail = buildPaymentConfirmedEmail(
+        { ...order, status: "paid", payment_status: "confirmed", paid_at: now } as MailOrder,
+        (oi ?? []) as MailOrderItem[]
+      );
+      const mailResult = await sendMail({
+        to: order.customer_email,
+        cc: mail.cc,
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
+      });
+
+      if (!mailResult.ok) {
+        console.error("[orders] Falha ao enviar e-mail de pagamento confirmado", mailResult);
+      }
+    }
+
     return NextResponse.json({ ok: true });
   }
 

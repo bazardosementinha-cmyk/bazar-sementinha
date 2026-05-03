@@ -82,7 +82,7 @@ export function buildOrderCreatedEmail(order: MailOrder, items: MailOrderItem[])
     "",
     `Acompanhe seu pedido: ${link}`,
     "",
-    "Se o pagamento for por Pix, envie o comprovante pela tela de acompanhamento do pedido. Depois da conferência, a equipe combina a retirada no Tucxa2.",
+    "Se o pagamento for por Pix, envie o comprovante por e-mail respondendo esta mensagem ou pelo WhatsApp e combinamos a retirada no Tucxa2.",
     "",
     "Obrigado por apoiar o Bazar do Sementinha!",
   ]
@@ -101,7 +101,7 @@ export function buildOrderCreatedEmail(order: MailOrder, items: MailOrderItem[])
       <h3>Itens do pedido</h3>
       ${itemsHtml(items)}
       <p><a href="${escapeHtml(link)}">Clique aqui para acompanhar seu pedido</a></p>
-      <p>Se o pagamento for por Pix, envie o comprovante pela tela de acompanhamento do pedido. Depois da conferência, a equipe combina a retirada no Tucxa2.</p>
+      <p>Se o pagamento for por Pix, envie o comprovante respondendo este e-mail ou pelo WhatsApp e combinamos a retirada no Tucxa2.</p>
       <p>Obrigado por apoiar o Bazar do Sementinha!</p>
     </div>`;
 
@@ -127,7 +127,7 @@ export function buildReminderEmail(order: MailOrder, kind: "remind_8h" | "remind
     "",
     `Acompanhe seu pedido: ${link}`,
     "",
-    "Após o pagamento, envie o comprovante pela tela de acompanhamento do pedido. A retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.",
+    "Após o pagamento, envie o comprovante por e-mail respondendo esta mensagem ou pelo WhatsApp. A retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.",
     "",
     "Obrigado!",
   ]
@@ -144,7 +144,7 @@ export function buildReminderEmail(order: MailOrder, kind: "remind_8h" | "remind
       <h3>Itens do pedido</h3>
       ${itemsHtml(items)}
       <p><a href="${escapeHtml(link)}">Clique aqui para acompanhar seu pedido</a></p>
-      <p>Após o pagamento, envie o comprovante pela tela de acompanhamento do pedido. A retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.</p>
+      <p>Após o pagamento, envie o comprovante respondendo este e-mail ou pelo WhatsApp. A retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.</p>
       <p>Obrigado!</p>
     </div>`;
 
@@ -183,74 +183,6 @@ export function buildCancellationEmail(order: MailOrder, items: MailOrderItem[])
       <p><a href="${escapeHtml(link)}">Clique aqui para acompanhar o histórico do pedido</a></p>
       <p>Se quiser, você pode fazer um novo pedido a qualquer momento.</p>
       <p>Obrigado!</p>
-    </div>`;
-
-  return { subject, text, html, cc: getAdminEmailCopyTo() };
-}
-
-export function buildPaymentProofSubmittedEmail(order: MailOrder, items: MailOrderItem[]) {
-  const name = customerName(order.customer_name);
-  const link = trackingUrl(order);
-  const subject = `Bazar do Sementinha • Comprovante recebido do pedido ${order.code}`;
-
-  const text = [
-    `Olá, ${name}!`,
-    "",
-    `Recebemos o comprovante do pedido ${order.code}.`,
-    "A equipe do Bazar fará a conferência antes de confirmar o pagamento.",
-    "",
-    "Itens do pedido:",
-    itemsText(items),
-    "",
-    `Acompanhe seu pedido: ${link}`,
-    "",
-    "Obrigado por apoiar o Bazar do Sementinha!",
-  ].join("\n");
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#1f2937">
-      <h2>Bazar do Sementinha</h2>
-      <p>Olá, <strong>${escapeHtml(name)}</strong>!</p>
-      <p>Recebemos o comprovante do pedido <strong>${escapeHtml(order.code)}</strong>.</p>
-      <p>A equipe do Bazar fará a conferência antes de confirmar o pagamento.</p>
-      <h3>Itens do pedido</h3>
-      ${itemsHtml(items)}
-      <p><a href="${escapeHtml(link)}">Clique aqui para acompanhar seu pedido</a></p>
-      <p>Obrigado por apoiar o Bazar do Sementinha!</p>
-    </div>`;
-
-  return { subject, text, html, cc: getAdminEmailCopyTo() };
-}
-
-export function buildPaymentConfirmedEmail(order: MailOrder, items: MailOrderItem[]) {
-  const name = customerName(order.customer_name);
-  const link = trackingUrl(order);
-  const subject = `Bazar do Sementinha • Pagamento confirmado do pedido ${order.code}`;
-
-  const text = [
-    `Olá, ${name}!`,
-    "",
-    `O pagamento do pedido ${order.code} foi confirmado.`,
-    `Retirada: ${PICKUP_FULL}.`,
-    "",
-    "Itens do pedido:",
-    itemsText(items),
-    "",
-    `Acompanhe seu pedido: ${link}`,
-    "",
-    "A equipe separará os itens pelo código do pedido. Obrigado por apoiar o Bazar do Sementinha!",
-  ].join("\n");
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;line-height:1.5;color:#1f2937">
-      <h2>Bazar do Sementinha</h2>
-      <p>Olá, <strong>${escapeHtml(name)}</strong>!</p>
-      <p>O pagamento do pedido <strong>${escapeHtml(order.code)}</strong> foi confirmado.</p>
-      <p><strong>Retirada:</strong> ${escapeHtml(PICKUP_FULL)}</p>
-      <h3>Itens do pedido</h3>
-      ${itemsHtml(items)}
-      <p><a href="${escapeHtml(link)}">Clique aqui para acompanhar seu pedido</a></p>
-      <p>A equipe separará os itens pelo código do pedido. Obrigado por apoiar o Bazar do Sementinha!</p>
     </div>`;
 
   return { subject, text, html, cc: getAdminEmailCopyTo() };
