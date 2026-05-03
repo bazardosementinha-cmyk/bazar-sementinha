@@ -94,7 +94,7 @@ export const ADMIN_HELP_TOPICS = {
     bullets: [
       "Reserva ativa não deve liberar o item para outro comprador antes do prazo/cancelamento.",
       "Use o código do pedido e o código do item para localizar rapidamente na caixa/local informado.",
-      "Quando o cliente enviar comprovante pelo pedido, confira valor, data e favorecido antes de marcar como pago.",
+      "Quando o cliente enviar comprovante pela tela de acompanhamento do pedido, confira valor, data e favorecido antes de marcar como pago.",
       "Cancelamentos devem devolver o item ao fluxo correto somente quando a reserva realmente expirar.",
       "Se o pedido tiver comprovante enviado, estiver pago ou entregue, os lembretes agendados permanecem como histórico, mas não são enviados.",
     ],
@@ -108,7 +108,7 @@ export const ADMIN_HELP_TOPICS = {
     bullets: [
       "Sempre confira os itens do pedido contra os códigos físicos antes da retirada.",
       "Comprovante enviado no site deve ser conferido antes de confirmar pagamento; enquanto isso, a reserva permanece protegida.",
-      "Use WhatsApp apenas para dúvidas e retirada; o comprovante deve ficar registrado no pedido.",
+      "Use WhatsApp apenas para dúvidas e retirada; o comprovante deve ser enviado pela tela de acompanhamento do pedido e ficar registrado no sistema.",
       "Finalize como entregue/vendido somente depois da conferência completa.",
     ],
     ctaHref: "/admin/manual#separacao",

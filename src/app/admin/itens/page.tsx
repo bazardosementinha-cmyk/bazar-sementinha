@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import AdminNavPills from "@/components/AdminNavPills";
 import ContextHelp from "@/components/ContextHelp";
 import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
 import { formatBRL, statusLabel, type ItemStatus } from "@/lib/utils";
@@ -98,8 +98,6 @@ function isDemoItem(item: ItemRow) {
 }
 
 export default function AdminItensPage() {
-  const pathname = usePathname();
-
   const [items, setItems] = useState<ItemRow[]>([]);
   const [tab, setTab] = useState<(typeof tabs)[number]["key"]>("review");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -269,37 +267,11 @@ export default function AdminItensPage() {
     );
   }
 
-  const isItens = pathname?.startsWith("/admin/itens");
-  const isPedidos = pathname?.startsWith("/admin/pedidos");
-  const isRelatorio = pathname?.startsWith("/admin/relatorio");
-  const isCatalogoDemo = pathname?.startsWith("/admin/catalogo-demo");
-  const isEtiquetas = pathname?.startsWith("/admin/etiquetas");
-  const isManual = pathname?.startsWith("/admin/manual");
-
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <Link href="/admin/itens" className={pillClass(!!isItens)}>
-          Itens
-        </Link>
-        <Link href="/admin/pedidos" className={pillClass(!!isPedidos)}>
-          Pedidos
-        </Link>
-        <Link href="/admin/relatorio" className={pillClass(!!isRelatorio)}>
-          Relatório
-        </Link>
-        <Link href="/admin/catalogo-demo" className={pillClass(!!isCatalogoDemo)}>
-          Catálogo Demo
-        </Link>
-        <Link href="/admin/etiquetas/lote" className={pillClass(!!isEtiquetas)}>
-          Etiquetas em lote
-        </Link>
-        <Link href="/admin/manual" className={pillClass(!!isManual)}>
-          Manual
-        </Link>
-      </div>
+      <AdminNavPills />
 
-      <p className="mt-2 text-slate-600">Gerencie status (Disponível / Reservado / Vendido). Itens demo ficam separados na aba Catálogo Demo/Demo para não confundir com rascunhos reais.</p>
+      <p className="mt-2 text-slate-600">Gerencie status (Disponível / Reservado / Vendido). Itens demo ficam separados na aba Demo para não confundir com rascunhos reais.</p>
 
       <ContextHelp topic={ADMIN_HELP_TOPICS.itens} className="mt-4" />
 

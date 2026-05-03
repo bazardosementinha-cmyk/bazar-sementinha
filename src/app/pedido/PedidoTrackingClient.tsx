@@ -135,7 +135,7 @@ function nextActionText(data: Extract<TrackResponse, { ok: true }>) {
   }
 
   if (order.status === "paid") {
-    return "Pagamento confirmado. Agora falta apenas acertar ou confirmar a retirada no Tucxa2 pelo WhatsApp.";
+    return "Pagamento confirmado. Agora falta apenas acertar ou confirmar a retirada no Tucxa2 com a equipe.";
   }
 
   if (order.payment_status === "submitted") {
@@ -145,8 +145,8 @@ function nextActionText(data: Extract<TrackResponse, { ok: true }>) {
   if (order.payment_plan === "pix_now") {
     const deadline = formatDateTime(order.expires_at);
     return deadline
-      ? `Envie o comprovante do Pix até ${deadline} e acerte a retirada no Tucxa2 pelo WhatsApp.`
-      : "Envie o comprovante do Pix e acerte a retirada no Tucxa2 pelo WhatsApp.";
+      ? `Envie o comprovante do Pix aqui no pedido até ${deadline}. Depois da conferência, a equipe combina a retirada no Tucxa2.`
+      : "Envie o comprovante do Pix aqui no pedido. Depois da conferência, a equipe combina a retirada no Tucxa2.";
   }
 
   if (order.payment_plan === "card_pickup_deposit") {
@@ -157,7 +157,7 @@ function nextActionText(data: Extract<TrackResponse, { ok: true }>) {
       : `Envie a caução de ${deposit} e acerte a retirada no Tucxa2.`;
   }
 
-  return "Acompanhe o status do pedido e fale com a equipe pelo WhatsApp.";
+  return "Acompanhe o status do pedido. Use o WhatsApp apenas para dúvidas e combinação de retirada.";
 }
 
 function customerWhatsappLink(data: Extract<TrackResponse, { ok: true }>) {

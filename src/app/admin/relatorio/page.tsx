@@ -25,10 +25,10 @@ export default function RelatorioPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      {/* ✅ Mesma navegação (sem Importar) e com "Relatório" ativo */}
+      {/* Navegação padrão do admin */}
       <AdminNavPills />
 
-      <h1 className="mt-4 text-2xl font-bold">Relatório (transparência)</h1>
+      <h1 className="mt-4 text-2xl font-bold">Relatórios (transparência)</h1>
       <p className="mt-1 text-slate-600">Resumo por status e total vendido.</p>
 
       <ContextHelp topic={ADMIN_HELP_TOPICS.relatorio} className="mt-4" />
