@@ -37,20 +37,31 @@ type OrderRow = {
   expires_at: string | null;
   pickup_deadline_at: string | null;
   payment_plan: string | null;
+  payment_status: string | null;
+  payment_proof_uploaded_at: string | null;
+  paid_at: string | null;
 };
 
 type ReservationLock = {
   locked: boolean;
+  order_id: string | null;
   order_code: string | null;
+  order_status: string | null;
+  payment_status: string | null;
+  payment_proof_uploaded_at: string | null;
+  paid_at: string | null;
   deadline_at: string | null;
   payment_plan: string | null;
+  reason: string | null;
 };
 
 function getOrderDeadline(order: Pick<OrderRow, "pickup_deadline_at" | "expires_at">): string | null {
   return order.pickup_deadline_at || order.expires_at || null;
 }
 
-function isActiveReservedOrder(order: OrderRow, nowMs: number): boolean {
+function isProtectedOrder(order: OrderRow, nowMs: number): boolean {
+  if (["paid", "delivered"].includes(order.status)) return true;
+  if (order.payment_status === "submitted" || order.payment_status === "confirmed") return true;
   if (order.status !== "reserved") return false;
 
   const deadline = getOrderDeadline(order);
@@ -60,6 +71,13 @@ function isActiveReservedOrder(order: OrderRow, nowMs: number): boolean {
   if (Number.isNaN(deadlineMs)) return true;
 
   return deadlineMs > nowMs;
+}
+
+function reservationReason(order: OrderRow): string {
+  if (order.status === "paid" || order.payment_status === "confirmed") return "paid";
+  if (order.payment_status === "submitted") return "proof_submitted";
+  if (order.status === "delivered") return "delivered";
+  return "active_reservation";
 }
 
 function lockScore(order: OrderRow): number {
@@ -104,7 +122,7 @@ export async function GET() {
   if (orderIds.length) {
     const { data: orders, error: ordersErr } = await supabase
       .from("orders")
-      .select("id,code,status,expires_at,pickup_deadline_at,payment_plan")
+      .select("id,code,status,expires_at,pickup_deadline_at,payment_plan,payment_status,payment_proof_uploaded_at,paid_at")
       .in("id", orderIds);
 
     if (ordersErr) return NextResponse.json({ error: ordersErr.message }, { status: 500 });
@@ -118,15 +136,21 @@ export async function GET() {
   for (const ref of refs) {
     const order = ordersById.get(ref.order_id);
     if (!order) continue;
-    if (!isActiveReservedOrder(order, nowMs)) continue;
+    if (!isProtectedOrder(order, nowMs)) continue;
 
     const current = locksByItemId[ref.item_id];
     if (!current) {
       locksByItemId[ref.item_id] = {
         locked: true,
+        order_id: order.id,
         order_code: order.code,
+        order_status: order.status,
+        payment_status: order.payment_status,
+        payment_proof_uploaded_at: order.payment_proof_uploaded_at,
+        paid_at: order.paid_at,
         deadline_at: getOrderDeadline(order),
         payment_plan: order.payment_plan,
+        reason: reservationReason(order),
       };
       continue;
     }
@@ -139,9 +163,15 @@ export async function GET() {
     if (nextScore > currentScore) {
       locksByItemId[ref.item_id] = {
         locked: true,
+        order_id: order.id,
         order_code: order.code,
+        order_status: order.status,
+        payment_status: order.payment_status,
+        payment_proof_uploaded_at: order.payment_proof_uploaded_at,
+        paid_at: order.paid_at,
         deadline_at: getOrderDeadline(order),
         payment_plan: order.payment_plan,
+        reason: reservationReason(order),
       };
     }
   }
@@ -150,9 +180,15 @@ export async function GET() {
     ...item,
     reservation_lock: locksByItemId[item.id] ?? {
       locked: false,
+      order_id: null,
       order_code: null,
+      order_status: null,
+      payment_status: null,
+      payment_proof_uploaded_at: null,
+      paid_at: null,
       deadline_at: null,
       payment_plan: null,
+      reason: null,
     },
   }));
 

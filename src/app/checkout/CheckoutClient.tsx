@@ -123,11 +123,11 @@ function paymentDeadlineText(order: CreateOrderSuccess["order"]) {
 
 function paymentNextStepText(order: CreateOrderSuccess["order"]) {
   if (order.payment_plan === "pix_now") {
-    return "Use o botão abaixo para enviar o print/comprovante do Pix e acertar a retirada no Tucxa2 pelo WhatsApp.";
+    return "Use o botão abaixo para abrir o acompanhamento do pedido e enviar o comprovante do Pix no próprio site. Depois da conferência, a equipe combina a retirada no Tucxa2.";
   }
 
   const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
-  return `Use o botão abaixo para enviar o comprovante da caução de ${deposit} e acertar a retirada no Tucxa2 pelo WhatsApp.`;
+  return `Use o botão abaixo para abrir o acompanhamento do pedido e enviar o comprovante da caução de ${deposit} no próprio site. Depois da conferência, a equipe combina a retirada no Tucxa2.`;
 }
 
 function shouldShowPixBox(order: CreateOrderSuccess["order"]) {
@@ -372,7 +372,7 @@ export default function CheckoutClient() {
           <h1 className="text-2xl font-semibold">{isCompleted ? "Pedido finalizado" : "Finalizar pedido"}</h1>
           <p className="mt-1 text-sm text-neutral-600">
             {isCompleted
-              ? "Seu pedido foi criado com sucesso. Acompanhe o status e, se necessário, envie o comprovante pelo WhatsApp."
+              ? "Seu pedido foi criado com sucesso. Acompanhe o status e envie o comprovante pelo próprio pedido."
               : "Informe seus dados para atendimento no WhatsApp e acesso aos seus pedidos."}
           </p>
         </div>
@@ -701,22 +701,25 @@ function OrderCompletionCard({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <a
-          href={whatsappLink}
-          target="_blank"
-          rel="noreferrer"
+        <Link
+          href={tracking.url}
           className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
         >
-          Enviar comprovante no WhatsApp
-        </a>
+          Enviar comprovante no pedido
+        </Link>
 
         <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
           Acessar meus pedidos
         </Link>
 
-        <Link href={tracking.url} className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
-          Ver este pedido
-        </Link>
+        <a
+          href={whatsappLink}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
+        >
+          Falar no WhatsApp
+        </a>
 
         <Link href="/" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
           Continuar comprando

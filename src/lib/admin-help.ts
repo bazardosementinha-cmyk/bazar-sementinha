@@ -41,7 +41,7 @@ export const ADMIN_HELP_TOPICS = {
     bullets: [
       "Rascunho: ainda precisa de revisão, etiqueta ou conferência; itens demo ficam separados para não confundir com itens reais.",
       "Disponível: aparece para venda no site.",
-      "Reservado: não deve voltar para venda enquanto houver pedido ativo.",
+      "Reservado: não deve voltar para venda enquanto houver pedido ativo, comprovante enviado ou pagamento confirmado.",
       "Catálogo demo: serve para treinamento/apresentação e não aparece para o público.",
       "Vendido: use somente depois de pagamento/retirada confirmados conforme o combinado.",
     ],
@@ -94,9 +94,9 @@ export const ADMIN_HELP_TOPICS = {
     bullets: [
       "Reserva ativa não deve liberar o item para outro comprador antes do prazo/cancelamento.",
       "Use o código do pedido e o código do item para localizar rapidamente na caixa/local informado.",
-      "Quando o cliente enviar comprovante pelo pedido, confira valor, data e favorecido antes de marcar como pago.",
+      "Quando o cliente enviar comprovante pela tela de acompanhamento do pedido, confira valor, data e favorecido antes de marcar como pago.",
       "Cancelamentos devem devolver o item ao fluxo correto somente quando a reserva realmente expirar.",
-      "Se o pedido estiver pago ou entregue, os lembretes agendados permanecem como histórico, mas não são enviados.",
+      "Se o pedido tiver comprovante enviado, estiver pago ou entregue, os lembretes agendados permanecem como histórico, mas não são enviados.",
     ],
     ctaHref: "/admin/manual#venda",
     ctaLabel: "Ver fluxo de venda",
@@ -107,8 +107,8 @@ export const ADMIN_HELP_TOPICS = {
       "A página do pedido é o checklist de atendimento: confirmar pagamento, separar itens pelo código e registrar a conclusão.",
     bullets: [
       "Sempre confira os itens do pedido contra os códigos físicos antes da retirada.",
-      "Comprovante enviado no site deve ser conferido antes de confirmar pagamento.",
-      "Use WhatsApp apenas para dúvidas e retirada; o comprovante deve ficar registrado no pedido.",
+      "Comprovante enviado no site deve ser conferido antes de confirmar pagamento; enquanto isso, a reserva permanece protegida.",
+      "Use WhatsApp apenas para dúvidas e retirada; o comprovante deve ser enviado pela tela de acompanhamento do pedido e ficar registrado no sistema.",
       "Finalize como entregue/vendido somente depois da conferência completa.",
     ],
     ctaHref: "/admin/manual#separacao",

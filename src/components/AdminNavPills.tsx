@@ -14,7 +14,9 @@ export default function AdminNavPills() {
 
   const isItens = pathname?.startsWith("/admin/itens");
   const isPedidos = pathname?.startsWith("/admin/pedidos");
-  const isRelatorio = pathname?.startsWith("/admin/relatorio");
+  const isRelatorio = pathname?.startsWith("/admin/relatorio") || pathname?.startsWith("/admin/relatorios");
+  const isCatalogoDemo = pathname?.startsWith("/admin/catalogo-demo");
+  const isEtiquetas = pathname?.startsWith("/admin/etiquetas");
   const isManual = pathname?.startsWith("/admin/manual");
 
   return (
@@ -26,7 +28,13 @@ export default function AdminNavPills() {
         Pedidos
       </Link>
       <Link href="/admin/relatorio" className={pillClass(!!isRelatorio)}>
-        Relatório
+        Relatórios
+      </Link>
+      <Link href="/admin/catalogo-demo" className={pillClass(!!isCatalogoDemo)}>
+        Catálogo Demo
+      </Link>
+      <Link href="/admin/etiquetas/lote" className={pillClass(!!isEtiquetas)}>
+        Etiquetas em lote
       </Link>
       <Link href="/admin/manual" className={pillClass(!!isManual)}>
         Manual

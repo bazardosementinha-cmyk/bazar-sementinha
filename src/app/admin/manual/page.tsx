@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdminNavPills from "@/components/AdminNavPills";
 import AdminProcessFlow from "@/components/AdminProcessFlow";
 import ContextHelp from "@/components/ContextHelp";
 import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
@@ -14,7 +15,9 @@ const LABEL_EXAMPLES = [
 export default function AdminManualPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <AdminNavPills />
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Manual do Processo do Bazar Online</h1>
           <p className="mt-1 max-w-3xl text-slate-600">
@@ -249,7 +252,7 @@ export default function AdminManualPage() {
       <section id="comprovante-pix" className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
         <h2 className="text-xl font-bold">Fluxo seguro do comprovante Pix</h2>
         <p className="mt-2 text-sm leading-6 text-emerald-900">
-          O cliente não precisa mais enviar o comprovante pelo WhatsApp. Ele acessa o pedido, faz upload do arquivo e o sistema avisa o Bazar por e-mail com cópia para o cliente.
+          O cliente não envia mais o comprovante pelo WhatsApp. Ele acessa a tela de acompanhamento do pedido, faz upload do arquivo no próprio pedido e o sistema avisa o Bazar por e-mail com cópia para o cliente.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-4">
           <div className="rounded-2xl bg-white/80 p-4">

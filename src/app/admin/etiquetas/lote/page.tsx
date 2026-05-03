@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdminNavPills from "@/components/AdminNavPills";
 import BatchLabelPrint from "@/components/BatchLabelPrint";
 import ContextHelp from "@/components/ContextHelp";
 import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
@@ -19,7 +20,11 @@ export default async function AdminEtiquetasLotePage({ searchParams }: { searchP
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <div className="no-print flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="no-print">
+        <AdminNavPills />
+      </div>
+
+      <div className="no-print mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Impressão de etiquetas em lote</h1>
           <p className="mt-1 max-w-3xl text-slate-600">

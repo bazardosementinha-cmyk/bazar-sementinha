@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import PaymentProofUpload from "@/components/PaymentProofUpload";
 
 type PaymentPlan = "pix_now" | "card_pickup_deposit" | "pay_pickup_24h";
 
@@ -26,6 +27,10 @@ type TrackResponse =
         pix_key: string | null;
         pickup_location: string | null;
         customer_name: string | null;
+        payment_status: string | null;
+        payment_proof_uploaded_at: string | null;
+        payment_proof_mime_type: string | null;
+        payment_proof_size_bytes: number | null;
       };
       items: Array<{
         short_id: string;
@@ -98,6 +103,26 @@ function statusClasses(status: string) {
   }
 }
 
+function paymentStatusLabel(status: string | null | undefined) {
+  switch (status) {
+    case "submitted":
+      return "Comprovante enviado";
+    case "confirmed":
+      return "Pagamento confirmado";
+    case "rejected":
+      return "Comprovante recusado";
+    default:
+      return "Aguardando comprovante";
+  }
+}
+
+function canUploadProof(data: Extract<TrackResponse, { ok: true }>) {
+  const status = data.order.status;
+  if (["cancelled", "canceled", "expired", "paid", "delivered"].includes(status)) return false;
+  if (["submitted", "confirmed"].includes(data.order.payment_status || "")) return false;
+  return data.order.payment_plan === "pix_now" || data.order.payment_plan === "card_pickup_deposit";
+}
+
 function nextActionText(data: Extract<TrackResponse, { ok: true }>) {
   const { order } = data;
 
@@ -110,14 +135,18 @@ function nextActionText(data: Extract<TrackResponse, { ok: true }>) {
   }
 
   if (order.status === "paid") {
-    return "Pagamento confirmado. Agora falta apenas acertar ou confirmar a retirada no Tucxa2 pelo WhatsApp.";
+    return "Pagamento confirmado. Agora falta apenas acertar ou confirmar a retirada no Tucxa2 com a equipe.";
+  }
+
+  if (order.payment_status === "submitted") {
+    return "Comprovante enviado. A equipe do Bazar fará a conferência antes de confirmar o pagamento.";
   }
 
   if (order.payment_plan === "pix_now") {
     const deadline = formatDateTime(order.expires_at);
     return deadline
-      ? `Envie o comprovante do Pix até ${deadline} e acerte a retirada no Tucxa2 pelo WhatsApp.`
-      : "Envie o comprovante do Pix e acerte a retirada no Tucxa2 pelo WhatsApp.";
+      ? `Envie o comprovante do Pix aqui no pedido até ${deadline}. Depois da conferência, a equipe combina a retirada no Tucxa2.`
+      : "Envie o comprovante do Pix aqui no pedido. Depois da conferência, a equipe combina a retirada no Tucxa2.";
   }
 
   if (order.payment_plan === "card_pickup_deposit") {
@@ -128,7 +157,7 @@ function nextActionText(data: Extract<TrackResponse, { ok: true }>) {
       : `Envie a caução de ${deposit} e acerte a retirada no Tucxa2.`;
   }
 
-  return "Acompanhe o status do pedido e fale com a equipe pelo WhatsApp.";
+  return "Acompanhe o status do pedido. Use o WhatsApp apenas para dúvidas e combinação de retirada.";
 }
 
 function customerWhatsappLink(data: Extract<TrackResponse, { ok: true }>) {
@@ -171,7 +200,12 @@ function buildTimeline(data: Extract<TrackResponse, { ok: true }>) {
   }
 
   return [
-    { label: "Pedido criado", done: true, current: order.status === "reserved" },
+    { label: "Pedido criado", done: true, current: order.status === "reserved" && order.payment_status !== "submitted" },
+    {
+      label: "Comprovante enviado",
+      done: order.payment_status === "submitted" || order.status === "paid" || order.status === "delivered",
+      current: order.payment_status === "submitted" && order.status === "reserved",
+    },
     {
       label: "Pagamento confirmado",
       done: order.status === "paid" || order.status === "delivered",
@@ -363,9 +397,9 @@ export default function PedidoTrackingClient() {
                 href={customerWhatsappLink(data)}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
+                className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
               >
-                Enviar comprovante / falar no WhatsApp
+                Falar no WhatsApp
               </a>
 
               <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
@@ -373,6 +407,37 @@ export default function PedidoTrackingClient() {
               </Link>
             </div>
           </div>
+
+          {(data.order.payment_plan === "pix_now" || data.order.payment_plan === "card_pickup_deposit") && (
+            <div className="rounded-2xl border bg-white p-5">
+              <div className="font-semibold">Comprovante do Pix</div>
+              <p className="mt-1 text-sm text-neutral-600">
+                Status: <strong>{paymentStatusLabel(data.order.payment_status)}</strong>
+                {data.order.payment_proof_uploaded_at
+                  ? ` • enviado em ${formatDateTime(data.order.payment_proof_uploaded_at) || "—"}`
+                  : ""}
+              </p>
+
+              {canUploadProof(data) ? (
+                <div className="mt-4">
+                  <PaymentProofUpload
+                    code={data.order.code}
+                    token={canUseSecureLink ? initialToken : undefined}
+                    contact={contact}
+                    onUploaded={() => lookupOrder({ silent: true })}
+                  />
+                </div>
+              ) : (
+                <div className="mt-4 rounded-xl border bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
+                  {data.order.payment_status === "submitted"
+                    ? "Comprovante recebido. Aguarde a conferência da equipe."
+                    : data.order.status === "paid" || data.order.payment_status === "confirmed"
+                      ? "Pagamento já confirmado."
+                      : "Upload indisponível para este pedido."}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border bg-white p-5">
@@ -457,7 +522,7 @@ export default function PedidoTrackingClient() {
           <div className="rounded-2xl border bg-white p-5">
             <div className="font-semibold">Andamento do pedido</div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="mt-4 grid gap-3 md:grid-cols-4">
               {timeline.map((step) => (
                 <div
                   key={step.label}

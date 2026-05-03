@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AdminNavPills from "@/components/AdminNavPills";
 import DemoCatalogPreview from "@/components/DemoCatalogPreview";
 import ContextHelp from "@/components/ContextHelp";
 import { ADMIN_HELP_TOPICS } from "@/lib/admin-help";
@@ -13,7 +14,9 @@ export default async function AdminCatalogoDemoPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <AdminNavPills />
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Catálogo demo</h1>
           <p className="mt-1 max-w-3xl text-slate-600">

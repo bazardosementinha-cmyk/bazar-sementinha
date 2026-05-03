@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { supabaseService } from "@/lib/supabase/service";
 import { sortOrderReminders } from "@/lib/order-reminders";
+import { createPaymentProofSignedUrl } from "@/lib/payment-proof";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,11 @@ type Order = {
   paid_at: string | null;
   delivered_at: string | null;
   cancelled_at: string | null;
+  payment_status?: string | null;
+  payment_proof_path?: string | null;
+  payment_proof_uploaded_at?: string | null;
+  payment_proof_mime_type?: string | null;
+  payment_proof_size_bytes?: number | null;
 };
 
 type OrderItem = {
@@ -92,8 +98,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ orderId: strin
     .order("due_at", { ascending: true });
   if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
 
+  const paymentProofSignedUrl = await createPaymentProofSignedUrl(order.payment_proof_path);
+
   return NextResponse.json({
-    order,
+    order: {
+      ...order,
+      payment_proof_signed_url: paymentProofSignedUrl,
+    },
     items: (items ?? []) as OrderItem[],
     reminders: sortOrderReminders((reminders ?? []) as Reminder[]),
   });
@@ -140,7 +151,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ orderId: strin
   const itemIds = (oi ?? []).map((r) => (r as { item_id: string }).item_id);
 
   if (parsed.data.action === "mark_paid") {
-    const { error } = await s.from("orders").update({ status: "paid", paid_at: now }).eq("id", order.id);
+    const { error } = await s
+      .from("orders")
+      .update({ status: "paid", payment_status: "confirmed", paid_at: now })
+      .eq("id", order.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
@@ -148,7 +162,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orderId: strin
   if (parsed.data.action === "mark_delivered") {
     const { error: oErr } = await s
       .from("orders")
-      .update({ status: "delivered", delivered_at: now })
+      .update({ status: "delivered", payment_status: "confirmed", delivered_at: now })
       .eq("id", order.id);
     if (oErr) return NextResponse.json({ error: oErr.message }, { status: 500 });
 
@@ -162,7 +176,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orderId: strin
 
   const { error: cErr } = await s
     .from("orders")
-    .update({ status: "cancelled", cancelled_at: now })
+    .update({ status: "cancelled", payment_status: "cancelled", cancelled_at: now })
     .eq("id", order.id);
   if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
 

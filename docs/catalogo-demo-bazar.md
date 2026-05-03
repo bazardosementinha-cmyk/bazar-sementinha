@@ -76,3 +76,11 @@ Arquivos de apoio:
 - `scripts/upload-demo-catalog-photos-by-category.mjs`: sobe as fotos por categoria e atualiza `item_photos`.
 - `docs/demo-catalog-photos.md`: passo a passo operacional.
 - `docs/demo-catalog-photo-prompts.md`: padrão visual e prompts por categoria.
+
+
+## Ajustes operacionais de reserva e lembretes
+
+- O acesso ao Catálogo Demo deve ficar no menu principal do admin, não misturado aos filtros da lista de itens.
+- Itens reservados devem exibir o pedido associado quando houver vínculo ativo.
+- Itens com pedido pago ou comprovante enviado não devem ser liberados manualmente para disponível.
+- Lembretes pendentes de pedidos com comprovante enviado, pagos, entregues ou cancelados ficam apenas como histórico e não devem ser enviados.
