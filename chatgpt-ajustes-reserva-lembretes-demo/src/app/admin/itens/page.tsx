@@ -9,15 +9,9 @@ import { formatBRL, statusLabel, type ItemStatus } from "@/lib/utils";
 
 type ReservationLock = {
   locked: boolean;
-  order_id: string | null;
   order_code: string | null;
-  order_status: string | null;
-  payment_status: string | null;
-  payment_proof_uploaded_at: string | null;
-  paid_at: string | null;
   deadline_at: string | null;
   payment_plan: string | null;
-  reason: string | null;
 };
 
 type ItemRow = {
@@ -71,20 +65,10 @@ function formatDateTime(value: string | null | undefined) {
 
 function reservationLockText(lock?: ReservationLock) {
   if (!lock?.locked) return null;
-
-  if (lock.reason === "paid") return `Pedido ${lock.order_code ?? "ativo"} pago — manter reservado até entrega`;
-  if (lock.reason === "proof_submitted") return `Pedido ${lock.order_code ?? "ativo"} com comprovante enviado — aguardar conferência`;
-  if (lock.reason === "delivered") return `Pedido ${lock.order_code ?? "ativo"} entregue — item deve virar vendido`;
-
   const deadline = formatDateTime(lock.deadline_at);
   return deadline
     ? `Pedido ${lock.order_code ?? "ativo"} protegido até ${deadline}`
     : `Pedido ${lock.order_code ?? "ativo"} com reserva ativa`;
-}
-
-function reservationOrderHref(lock?: ReservationLock) {
-  if (!lock?.locked || !lock.order_id) return null;
-  return `/admin/pedidos/${lock.order_id}`;
 }
 
 function isDemoItem(item: ItemRow) {
@@ -229,7 +213,7 @@ export default function AdminItensPage() {
           Disponível
         </button>
 
-        {it.status !== "reserved" && !isLockedForAvailable ? (
+        {it.status !== "reserved" ? (
           <button
             disabled={busyId === it.short_id}
             className="rounded-lg bg-amber-600 px-2 py-1 text-white hover:bg-amber-700 disabled:opacity-60"
@@ -254,17 +238,11 @@ export default function AdminItensPage() {
 
   function StatusInfo({ it }: { it: ItemRow }) {
     const lockText = reservationLockText(it.reservation_lock);
-    const orderHref = reservationOrderHref(it.reservation_lock);
 
     return (
       <div>
         <div>{statusLabel(it.status)}</div>
         {lockText ? <div className="mt-1 text-xs font-medium text-amber-700">{lockText}</div> : null}
-        {orderHref ? (
-          <Link href={orderHref} className="mt-1 inline-flex rounded-lg border bg-white px-2 py-1 text-xs font-semibold hover:bg-slate-50">
-            Ver pedido
-          </Link>
-        ) : null}
       </div>
     );
   }
@@ -306,6 +284,9 @@ export default function AdminItensPage() {
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link href="/admin/importar" className={pillClass(false)}>
           Criar
+        </Link>
+        <Link href="/admin/catalogo-demo" className={pillClass(false)}>
+          Catálogo demo
         </Link>
         <Link href="/admin/etiquetas/lote" className={pillClass(false)}>
           Imprimir etiquetas

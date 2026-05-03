@@ -23,12 +23,6 @@ type Order = {
   paid_at: string | null;
   delivered_at: string | null;
   cancelled_at: string | null;
-  payment_status?: string | null;
-  payment_proof_path?: string | null;
-  payment_proof_signed_url?: string | null;
-  payment_proof_uploaded_at?: string | null;
-  payment_proof_mime_type?: string | null;
-  payment_proof_size_bytes?: number | null;
 };
 
 type OrderItem = {
@@ -87,42 +81,6 @@ function statusLabel(status: string) {
   }
 }
 
-function paymentStatusLabel(status: string | null | undefined) {
-  switch (status) {
-    case "submitted":
-      return "Comprovante enviado";
-    case "confirmed":
-      return "Pagamento confirmado";
-    case "cancelled":
-      return "Cancelado";
-    case "rejected":
-      return "Comprovante recusado";
-    default:
-      return "Aguardando comprovante";
-  }
-}
-
-function isOrderClosedForReminders(order: Order | null) {
-  if (!order) return false;
-  if (["paid", "delivered", "cancelled", "canceled", "expired"].includes(order.status)) return true;
-  if (["submitted", "confirmed"].includes(order.payment_status || "")) return true;
-  return false;
-}
-
-function inactiveReminderReason(order: Order | null) {
-  if (!order) return "";
-  if (order.payment_status === "submitted") return "Inativo — comprovante enviado";
-  if (order.status === "paid" || order.payment_status === "confirmed") return "Inativo — pedido pago";
-  if (order.status === "delivered") return "Inativo — pedido entregue";
-  if (["cancelled", "canceled", "expired"].includes(order.status)) return "Inativo — pedido cancelado";
-  return "Inativo";
-}
-
-function fileSizeLabel(bytes: number | null | undefined) {
-  if (!bytes || !Number.isFinite(bytes)) return "—";
-  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-}
-
 async function copy(text: string) {
   await navigator.clipboard.writeText(text);
 }
@@ -162,8 +120,6 @@ export default function PedidoDetalhePage() {
   }, [items]);
 
   const scheduledReminders = useMemo(() => sortOrderReminders(reminders), [reminders]);
-  const remindersInactive = isOrderClosedForReminders(order);
-  const reminderInactiveText = inactiveReminderReason(order);
 
   const initialMsg = useMemo(() => {
     if (!order) return "";
@@ -266,7 +222,7 @@ export default function PedidoDetalhePage() {
         <div>
           <h1 className="text-2xl font-bold">Pedido {order.code}</h1>
           <div className="mt-1 text-sm text-slate-600">
-            Cliente: <b>{customerName(order)}</b> • Status: <b>{statusLabel(order.status)}</b> • Pagamento: <b>{paymentStatusLabel(order.payment_status)}</b> • Total: <b>{brMoney(Number(order.total) || 0)}</b>
+            Cliente: <b>{customerName(order)}</b> • Status: <b>{statusLabel(order.status)}</b> • Total: <b>{brMoney(Number(order.total) || 0)}</b>
           </div>
           <div className="mt-1 text-xs text-slate-500">
             Criado em {brDateTime(order.created_at)} • Expira em {brDateTime(order.expires_at)} • Retirada: {pickupFullAddress(order)}
@@ -299,11 +255,11 @@ export default function PedidoDetalhePage() {
 
           <div className="mt-5 flex flex-wrap gap-2">
             <button
-              disabled={busy === "mark_paid" || (order.status !== "reserved" && order.status !== "paid")}
+              disabled={busy === "mark_paid" || order.status !== "reserved"}
               onClick={() => void action("mark_paid")}
               className="rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
             >
-Confirmar pagamento
+              Marcar como Pago
             </button>
             <button
               disabled={busy === "mark_delivered" || (order.status !== "paid" && order.status !== "reserved")}
@@ -313,34 +269,12 @@ Confirmar pagamento
               Marcar como Entregue (vira vendido)
             </button>
             <button
-              disabled={busy === "cancel" || order.status === "cancelled" || order.status === "delivered" || order.status === "paid" || order.payment_status === "submitted"}
+              disabled={busy === "cancel" || order.status === "cancelled" || order.status === "delivered"}
               onClick={() => void action("cancel")}
               className="rounded-xl bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-60"
             >
               Cancelar e liberar itens
             </button>
-          </div>
-
-          <div className="mt-5 rounded-2xl border bg-slate-50 p-4">
-            <div className="font-semibold">Comprovante Pix</div>
-            <div className="mt-2 grid gap-1 text-sm text-slate-700">
-              <div>Status: <b>{paymentStatusLabel(order.payment_status)}</b></div>
-              <div>Enviado em: <b>{order.payment_proof_uploaded_at ? brDateTime(order.payment_proof_uploaded_at) : "—"}</b></div>
-              <div>Tipo: <b>{order.payment_proof_mime_type || "—"}</b></div>
-              <div>Tamanho: <b>{fileSizeLabel(order.payment_proof_size_bytes)}</b></div>
-            </div>
-            {order.payment_proof_signed_url ? (
-              <a
-                href={order.payment_proof_signed_url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-flex rounded-xl border bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
-              >
-                Abrir comprovante
-              </a>
-            ) : (
-              <p className="mt-3 text-sm text-slate-500">Nenhum comprovante enviado ainda.</p>
-            )}
           </div>
         </div>
 
@@ -378,17 +312,7 @@ Confirmar pagamento
 
       <div className="mt-6 rounded-2xl border bg-white p-5">
         <div className="font-semibold">Lembretes agendados (8h e 16h)</div>
-        <p className="mt-1 text-sm text-slate-600">
-          {remindersInactive
-            ? "Pedido com pagamento/comprovante já encaminhado: lembretes pendentes ficam apenas como histórico e não serão enviados."
-            : "O sistema agenda; você copia e envia no WhatsApp e marca como enviado."}
-        </p>
-
-        {remindersInactive ? (
-          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            {reminderInactiveText}. Lembretes futuros não precisam ser enviados.
-          </div>
-        ) : null}
+        <p className="mt-1 text-sm text-slate-600">O sistema agenda; você copia e envia no WhatsApp e marca como enviado.</p>
 
         <div className="mt-4 overflow-hidden rounded-2xl border">
           <table className="w-full text-sm">
@@ -407,30 +331,21 @@ Confirmar pagamento
                   <td className="px-3 py-2 text-xs text-slate-600">{brDateTime(r.due_at)}</td>
                   <td className="px-3 py-2 text-xs">{r.sent_at ? `Sim (${brDateTime(r.sent_at)})` : "Não"}</td>
                   <td className="px-3 py-2">
-                    {r.sent_at ? (
-                      <span className="text-xs text-slate-500">Histórico</span>
-                    ) : remindersInactive ? (
-                      <div className="text-xs font-semibold text-emerald-700">
-                        {reminderInactiveText}<br />
-                        <span className="font-normal">Não será enviado</span>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => void copy(r.kind === "remind_8h" ? remind8 : remind16)}
-                          className="rounded-lg border bg-white px-2 py-1 hover:bg-slate-50"
-                        >
-                          Copiar msg
-                        </button>
-                        <button
-                          disabled={!!r.sent_at || busy === r.id}
-                          onClick={() => void markReminderSent(r.id)}
-                          className="rounded-lg bg-slate-900 px-2 py-1 text-white hover:bg-black disabled:opacity-60"
-                        >
-                          Marcar enviado
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => void copy(r.kind === "remind_8h" ? remind8 : remind16)}
+                        className="rounded-lg border bg-white px-2 py-1 hover:bg-slate-50"
+                      >
+                        Copiar msg
+                      </button>
+                      <button
+                        disabled={!!r.sent_at || busy === r.id}
+                        onClick={() => void markReminderSent(r.id)}
+                        className="rounded-lg bg-slate-900 px-2 py-1 text-white hover:bg-black disabled:opacity-60"
+                      >
+                        Marcar enviado
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

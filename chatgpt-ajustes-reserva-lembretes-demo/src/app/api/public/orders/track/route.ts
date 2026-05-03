@@ -81,7 +81,7 @@ export async function POST(req: Request) {
   const { data: order, error: orderErr } = await s
     .from("orders")
     .select(
-      "id,code,status,total,created_at,expires_at,pickup_deadline_at,payment_plan,deposit_amount,deposit_required,deposit_paid,paid_at,delivered_at,cancelled_at,pix_key,pickup_location,customer_name,customer_email,customer_whatsapp,payment_status,payment_proof_uploaded_at,payment_proof_mime_type,payment_proof_size_bytes"
+      "id,code,status,total,created_at,expires_at,pickup_deadline_at,payment_plan,deposit_amount,deposit_required,deposit_paid,paid_at,delivered_at,cancelled_at,pix_key,pickup_location,customer_name,customer_email,customer_whatsapp"
     )
     .eq("code", code)
     .maybeSingle();
@@ -138,10 +138,6 @@ export async function POST(req: Request) {
       pix_key: (order.pix_key as string | null) ?? null,
       pickup_location: (order.pickup_location as string | null) ?? null,
       customer_name: (order.customer_name as string | null) ?? null,
-      payment_status: (order.payment_status as string | null) ?? null,
-      payment_proof_uploaded_at: (order.payment_proof_uploaded_at as string | null) ?? null,
-      payment_proof_mime_type: (order.payment_proof_mime_type as string | null) ?? null,
-      payment_proof_size_bytes: (order.payment_proof_size_bytes as number | null) ?? null,
     },
     items: (items ?? []).map((it) => ({
       short_id: (it as { item_short_id: string }).item_short_id,
