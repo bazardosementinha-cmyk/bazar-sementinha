@@ -55,6 +55,10 @@ create table if not exists public.items (
   tagged_at timestamptz,
   reviewed_at timestamptz,
   published_at timestamptz,
+  is_demo boolean not null default false,
+  demo_group text,
+  demo_sort integer,
+  visibility text not null default 'public',
 
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
@@ -67,6 +71,10 @@ create index if not exists idx_items_category on public.items(category);
 create index if not exists idx_items_item_type on public.items(item_type);
 create index if not exists idx_items_label_template on public.items(label_template);
 create index if not exists idx_items_review_status on public.items(review_status);
+create index if not exists idx_items_is_demo on public.items(is_demo);
+create index if not exists idx_items_visibility on public.items(visibility);
+create index if not exists idx_items_demo_group on public.items(demo_group);
+create index if not exists idx_items_demo_sort on public.items(demo_sort);
 
 create table if not exists public.item_photos (
   id bigserial primary key,
@@ -244,3 +252,27 @@ using (bucket_id = 'items' and public.is_admin());
 -- Observação:
 -- O catálogo público usa URLs assinadas geradas no backend (service role),
 -- então não precisamos liberar leitura pública do bucket.
+
+
+-- 7) Campos de comprovante Pix em pedidos (quando a tabela orders já existir)
+alter table if exists public.orders add column if not exists payment_status text not null default 'awaiting_proof';
+alter table if exists public.orders add column if not exists payment_proof_path text;
+alter table if exists public.orders add column if not exists payment_proof_uploaded_at timestamptz;
+alter table if exists public.orders add column if not exists payment_proof_mime_type text;
+alter table if exists public.orders add column if not exists payment_proof_size_bytes integer;
+
+create index if not exists idx_orders_payment_status on public.orders(payment_status);
+create index if not exists idx_orders_payment_proof_uploaded_at on public.orders(payment_proof_uploaded_at desc);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'payment-proofs',
+  'payment-proofs',
+  false,
+  8388608,
+  array['image/jpeg','image/png','image/webp','application/pdf']::text[]
+)
+on conflict (id) do update
+set public = false,
+    file_size_limit = 8388608,
+    allowed_mime_types = array['image/jpeg','image/png','image/webp','application/pdf']::text[];
