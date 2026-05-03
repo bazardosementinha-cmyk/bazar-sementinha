@@ -67,35 +67,35 @@ function toMailItems(items: OrderItemRow[]): MailOrderItem[] {
 }
 
 function canSendReminder(order: OrderRow) {
-  if (CLOSED_ORDER_STATUSES.has(order.status)) return false;
-  if (BLOCKING_PAYMENT_STATUSES.has(String(order.payment_status ?? "").toLowerCase())) return false;
+  const orderStatus = String(order.status ?? "").toLowerCase();
+  const paymentStatus = String(order.payment_status ?? "").toLowerCase();
+  if (CLOSED_ORDER_STATUSES.has(orderStatus)) return false;
+  if (BLOCKING_PAYMENT_STATUSES.has(paymentStatus)) return false;
   return true;
 }
 
-export async function POST(req: Request, ctx: { params: Promise<{ orderId: string }> }) {
-  const gate = await requireAdmin();
-  if (!gate.ok) return NextResponse.json({ ok: false, error: gate.reason }, { status: 401 });
+async function getOrderByIdOrCode(orderIdOrCode: string) {
+  const s = supabaseService();
+  const key = orderIdOrCode.trim();
 
-  const { orderId } = await ctx.params;
-  const payload = await req.json().catch(() => ({}));
-  const kind = normalizeKind((payload as { kind?: unknown }).kind);
-  const markSent = Boolean((payload as { mark_sent?: unknown }).mark_sent);
+  let orderQuery = s.from("orders").select("*");
+  orderQuery = looksLikeUuid(key) ? orderQuery.eq("id", key) : orderQuery.eq("code", key);
 
+  const { data, error } = await orderQuery.maybeSingle();
+  return { data: data as OrderRow | null, error };
+}
+
+async function sendTestReminder(orderIdOrCode: string, rawKind: unknown, markSent: boolean) {
+  const kind = normalizeKind(rawKind);
   if (!kind) {
     return NextResponse.json({ ok: false, error: "Informe kind como 8h ou 16h." }, { status: 400 });
   }
 
   const s = supabaseService();
-  const key = orderId.trim();
+  const { data: order, error: orderError } = await getOrderByIdOrCode(orderIdOrCode);
 
-  let orderQuery = s.from("orders").select("*");
-  orderQuery = looksLikeUuid(key) ? orderQuery.eq("id", key) : orderQuery.eq("code", key);
-
-  const { data: orderData, error: orderError } = await orderQuery.maybeSingle();
   if (orderError) return NextResponse.json({ ok: false, error: orderError.message }, { status: 500 });
-  if (!orderData) return NextResponse.json({ ok: false, error: "Pedido não encontrado." }, { status: 404 });
-
-  const order = orderData as OrderRow;
+  if (!order) return NextResponse.json({ ok: false, error: "Pedido não encontrado." }, { status: 404 });
 
   if (!order.customer_email) {
     return NextResponse.json({ ok: false, error: "Pedido sem e-mail do cliente." }, { status: 400 });
@@ -117,8 +117,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ orderId: strin
   const { data: itemsData, error: itemsError } = await s
     .from("order_items")
     .select("item_short_id,item_title,price")
-    .eq("order_id", order.id)
-    .order("id", { ascending: true });
+    .eq("order_id", order.id);
 
   if (itemsError) return NextResponse.json({ ok: false, error: itemsError.message }, { status: 500 });
 
@@ -148,5 +147,37 @@ export async function POST(req: Request, ctx: { params: Promise<{ orderId: strin
     }
   }
 
-  return NextResponse.json({ ok: true, email_sent: true, kind, order_code: order.code, to: order.customer_email, cc: mail.cc ?? null });
+  return NextResponse.json({
+    ok: true,
+    email_sent: true,
+    kind,
+    order_id: order.id,
+    order_code: order.code,
+    to: order.customer_email,
+    cc: mail.cc ?? null,
+  });
+}
+
+type RouteContext = { params: Promise<{ orderId: string }> };
+
+export async function GET(_req: Request, ctx: RouteContext) {
+  const gate = await requireAdmin();
+  if (!gate.ok) return NextResponse.json({ ok: false, error: gate.reason }, { status: 401 });
+
+  const params = await ctx.params;
+  return NextResponse.json({
+    ok: true,
+    route: "admin order test reminder",
+    orderId: params.orderId,
+    usage: "POST JSON: { kind: '8h' } ou { kind: '16h' }",
+  });
+}
+
+export async function POST(req: Request, ctx: RouteContext) {
+  const gate = await requireAdmin();
+  if (!gate.ok) return NextResponse.json({ ok: false, error: gate.reason }, { status: 401 });
+
+  const params = await ctx.params;
+  const payload = await req.json().catch(() => ({}));
+  return sendTestReminder(params.orderId, (payload as { kind?: unknown }).kind, Boolean((payload as { mark_sent?: unknown }).mark_sent));
 }
