@@ -381,7 +381,7 @@ export default function PedidoDetalhePage() {
         <p className="mt-1 text-sm text-slate-600">
           {remindersInactive
             ? "Pedido com pagamento/comprovante já encaminhado: lembretes pendentes ficam apenas como histórico e não serão enviados."
-            : "O sistema agenda; você copia e envia no WhatsApp e marca como enviado."}
+            : "Até que o comprovante de pagamento seja enviado, serão enviados automaticamente estes lembretes para o cliente."}
         </p>
 
         {remindersInactive ? (

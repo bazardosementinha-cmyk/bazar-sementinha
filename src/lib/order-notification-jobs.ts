@@ -6,10 +6,7 @@ import {
   type MailOrder,
   type MailOrderItem,
 } from "@/lib/order-notifications";
-import {
-  buildOrderReminderRows,
-  type OrderReminderKind,
-} from "@/lib/order-reminders";
+import { buildOrderReminderRows, type OrderReminderKind } from "@/lib/order-reminders";
 
 export type OrderNotificationKind = OrderReminderKind | "cancel_24h";
 
@@ -55,6 +52,7 @@ type OrderRow = {
 };
 
 type ReminderRow = {
+  id?: string;
   order_id: string;
   kind: OrderNotificationKind;
   due_at: string;
@@ -92,6 +90,13 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+function normalizeKind(kind: string): OrderNotificationKind | null {
+  if (kind === "8h") return "remind_8h";
+  if (kind === "16h") return "remind_16h";
+  if (kind === "remind_8h" || kind === "remind_16h" || kind === "cancel_24h") return kind;
+  return null;
+}
+
 function shouldSkipBecauseOrderClosed(order: OrderRow): string | null {
   const status = String(order.status || "").toLowerCase();
   const paymentStatus = String(order.payment_status || "").toLowerCase();
@@ -104,7 +109,7 @@ function shouldSkipBecauseOrderClosed(order: OrderRow): string | null {
   return null;
 }
 
-function orderDeadline(order: OrderRow): string | null {
+function orderDeadline(order: Pick<OrderRow, "pickup_deadline_at" | "expires_at">): string | null {
   return order.pickup_deadline_at || order.expires_at || null;
 }
 
@@ -130,25 +135,18 @@ function normalizeItems(rows: OrderItemRow[]): MailOrderItem[] {
   }));
 }
 
-async function loadItemsByOrder(orderIds: string[]) {
+async function loadItemsByOrder(orderIds: string[]): Promise<Record<string, MailOrderItem[]>> {
   const s = supabaseService();
-  const empty: Record<string, MailOrderItem[]> = {};
-  if (!orderIds.length) return empty;
+  if (!orderIds.length) return {};
 
-  const first = await s
-    .from("order_items")
-    .select("order_id,item_id,item_short_id,item_title,price")
-    .in("order_id", orderIds);
+  const first = await s.from("order_items").select("order_id,item_id,item_short_id,item_title,price").in("order_id", orderIds);
 
-  let rows: OrderItemRow[] | null = null;
+  let rows: OrderItemRow[];
 
   if (!first.error) {
     rows = (first.data ?? []) as OrderItemRow[];
   } else {
-    const fallback = await s
-      .from("order_items")
-      .select("order_id,item_id,price,items(short_id,title,price)")
-      .in("order_id", orderIds);
+    const fallback = await s.from("order_items").select("order_id,item_id,price,items(short_id,title,price)").in("order_id", orderIds);
 
     if (fallback.error) throw fallback.error;
     rows = (fallback.data ?? []) as OrderItemRow[];
@@ -198,7 +196,7 @@ export async function findOrderForNotification(orderIdOrCode: string): Promise<O
   return (data as OrderRow | null) ?? null;
 }
 
-async function ensureRemindersForActiveOrders(result: ProcessOrderNotificationsResult, now: Date, limit: number) {
+async function ensureRemindersForActiveOrders(result: ProcessOrderNotificationsResult, limit: number) {
   const s = supabaseService();
 
   const { data, error } = await s
@@ -220,7 +218,7 @@ async function ensureRemindersForActiveOrders(result: ProcessOrderNotificationsR
 
   const rows = orders.flatMap((order) => {
     const reminders = buildOrderReminderRows(order.id, new Date(order.created_at), "pix_now");
-    const deadline = order.pickup_deadline_at || order.expires_at;
+    const deadline = orderDeadline(order);
     const cancellation = deadline
       ? [{ order_id: order.id, kind: "cancel_24h" as OrderNotificationKind, due_at: new Date(deadline).toISOString() }]
       : [];
@@ -229,9 +227,7 @@ async function ensureRemindersForActiveOrders(result: ProcessOrderNotificationsR
 
   if (!rows.length) return;
 
-  const { error: upsertError } = await s
-    .from("order_reminders")
-    .upsert(rows, { onConflict: "order_id,kind", ignoreDuplicates: true });
+  const { error: upsertError } = await s.from("order_reminders").upsert(rows, { onConflict: "order_id,kind", ignoreDuplicates: true });
 
   if (upsertError) throw upsertError;
   result.ensuredReminders += rows.length;
@@ -251,7 +247,10 @@ async function processDueReminders(result: ProcessOrderNotificationsResult, now:
 
   if (error) throw error;
 
-  const reminders = (data ?? []) as ReminderRow[];
+  const reminders = ((data ?? []) as ReminderRow[])
+    .map((row) => ({ ...row, kind: normalizeKind(row.kind) }))
+    .filter((row): row is ReminderRow => row.kind === "remind_8h" || row.kind === "remind_16h");
+
   result.reminderCandidates = reminders.length;
   if (!reminders.length) return;
 
@@ -318,6 +317,24 @@ async function processDueReminders(result: ProcessOrderNotificationsResult, now:
   }
 }
 
+async function releaseOrderItems(orderId: string): Promise<{ released: number; error?: string }> {
+  const s = supabaseService();
+
+  const { data: orderItemsForRelease, error: oiError } = await s.from("order_items").select("item_id").eq("order_id", orderId);
+
+  if (oiError) return { released: 0, error: oiError.message };
+
+  const itemIds = ((orderItemsForRelease ?? []) as Array<{ item_id: string | null }>).map((item) => item.item_id).filter(Boolean) as string[];
+
+  if (!itemIds.length) return { released: 0 };
+
+  const { error: releaseError } = await s.from("items").update({ status: "available" }).in("id", itemIds);
+
+  if (releaseError) return { released: 0, error: releaseError.message };
+
+  return { released: itemIds.length };
+}
+
 async function processDueCancellations(result: ProcessOrderNotificationsResult, now: Date, limit: number) {
   const s = supabaseService();
 
@@ -359,7 +376,7 @@ async function processDueCancellations(result: ProcessOrderNotificationsResult, 
     }
 
     if (result.dryRun) {
-      result.details.push({ kind: row.kind, order_code: order.code, dryRun: true, action: "cancel_order_and_release_items" });
+      result.details.push({ kind: row.kind, order_code: order.code, dryRun: true, action: "cancel_order_release_items_and_send_email" });
       continue;
     }
 
@@ -373,29 +390,16 @@ async function processDueCancellations(result: ProcessOrderNotificationsResult, 
       continue;
     }
 
-    const { error: updateOrderError } = await s
-      .from("orders")
-      .update({ status: "cancelled" })
-      .eq("id", order.id);
+    const { error: updateOrderError } = await s.from("orders").update({ status: "cancelled" }).eq("id", order.id);
 
     if (updateOrderError) {
       result.errors.push({ scope: "cancel_order", message: updateOrderError.message, details: { order_code: order.code } });
       continue;
     }
 
-    const { data: orderItemsForRelease, error: oiError } = await s
-      .from("order_items")
-      .select("item_id")
-      .eq("order_id", order.id);
-
-    if (!oiError) {
-      const itemIds = ((orderItemsForRelease ?? []) as Array<{ item_id: string | null }>).map((item) => item.item_id).filter(Boolean) as string[];
-      if (itemIds.length) {
-        const { error: releaseError } = await s.from("items").update({ status: "available" }).in("id", itemIds);
-        if (releaseError) {
-          result.errors.push({ scope: "release_items", message: releaseError.message, details: { order_code: order.code, itemIds } });
-        }
-      }
+    const release = await releaseOrderItems(order.id);
+    if (release.error) {
+      result.errors.push({ scope: "release_items", message: release.error, details: { order_code: order.code } });
     }
 
     const { error: markCancelError } = await s
@@ -410,7 +414,7 @@ async function processDueCancellations(result: ProcessOrderNotificationsResult, 
 
     result.cancelledOrders += 1;
     result.cancellationsSent += order.customer_email ? 1 : 0;
-    result.details.push({ kind: row.kind, order_code: order.code, cancelled: true, emailSent: Boolean(order.customer_email) });
+    result.details.push({ kind: row.kind, order_code: order.code, cancelled: true, emailSent: Boolean(order.customer_email), releasedItems: release.released });
   }
 }
 
@@ -435,7 +439,7 @@ export async function processOrderNotifications(options: ProcessOrderNotificatio
   };
 
   try {
-    await ensureRemindersForActiveOrders(result, now, limit);
+    await ensureRemindersForActiveOrders(result, limit);
   } catch (error) {
     result.errors.push({ scope: "ensure_reminders", message: errorMessage(error), details: error });
   }
