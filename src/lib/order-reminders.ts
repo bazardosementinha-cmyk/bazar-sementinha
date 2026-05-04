@@ -1,4 +1,5 @@
 export type OrderReminderKind = "remind_8h" | "remind_16h";
+export type OrderNotificationKind = OrderReminderKind | "cancel_24h";
 export type PaymentPlanForReminders = "pix_now" | "card_pickup_deposit" | string | null | undefined;
 
 export type OrderReminderRow = {
@@ -28,7 +29,10 @@ export function addHours(date: Date, hours: number): Date {
 }
 
 export function getReminderLabel(kind: OrderReminderKind | string): string {
-  return kind === "remind_8h" ? "8h" : kind === "remind_16h" ? "16h" : String(kind);
+  if (kind === "remind_8h") return "8h";
+  if (kind === "remind_16h") return "16h";
+  if (kind === "cancel_24h") return "Cancelamento 24h";
+  return String(kind);
 }
 
 export function getReminderOffsetHours(kind: OrderReminderKind | string): number | null {
