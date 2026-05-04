@@ -17,7 +17,7 @@ export async function GET(_req: Request, ctx: RouteContext) {
     route: "admin order test reminder",
     orderId,
     usage: "POST JSON: { kind: '8h' } ou { kind: '16h' }",
-    fallback_route: "/api/admin/test-order-reminder",
+    alternative: "Também é possível usar POST /api/admin/test-order-reminder com { orderId, kind }.",
   });
 }
 
@@ -27,5 +27,6 @@ export async function POST(req: Request, ctx: RouteContext) {
 
   const { orderId } = await ctx.params;
   const payload = (await req.json().catch(() => ({}))) as { kind?: unknown; mark_sent?: unknown };
+
   return sendAdminTestReminder(orderId, payload.kind, Boolean(payload.mark_sent));
 }

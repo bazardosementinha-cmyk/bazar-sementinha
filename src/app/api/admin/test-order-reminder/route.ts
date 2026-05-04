@@ -13,6 +13,7 @@ export async function GET() {
     ok: true,
     route: "admin test order reminder",
     usage: "POST JSON: { orderId: 'uuid-ou-ORD-XXXXX', kind: '8h' } ou { orderId: 'uuid-ou-ORD-XXXXX', kind: '16h' }",
+    lookup: "UUID usa orders.id; código ORD-XXXXX usa orders.code.",
   });
 }
 
