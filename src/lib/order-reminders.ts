@@ -29,15 +29,16 @@ export function addHours(date: Date, hours: number): Date {
 }
 
 export function getReminderLabel(kind: OrderReminderKind | string): string {
-  if (kind === "remind_8h") return "8h";
-  if (kind === "remind_16h") return "16h";
+  if (kind === "remind_8h" || kind === "8h") return "8h";
+  if (kind === "remind_16h" || kind === "16h") return "16h";
   if (kind === "cancel_24h") return "Cancelamento 24h";
   return String(kind);
 }
 
 export function getReminderOffsetHours(kind: OrderReminderKind | string): number | null {
-  const config = ORDER_REMINDER_OFFSETS.find((item) => item.kind === kind);
-  return config?.offsetHoursAfterCreation ?? null;
+  if (kind === "remind_8h" || kind === "8h") return 8;
+  if (kind === "remind_16h" || kind === "16h") return 16;
+  return null;
 }
 
 export function shouldScheduleOrderReminders(paymentPlan: PaymentPlanForReminders): boolean {

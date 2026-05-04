@@ -2,6 +2,7 @@ import { buildTrackingAbsoluteUrl } from "@/lib/order-links";
 import { getAdminEmailCopyTo } from "@/lib/email-config";
 
 const PICKUP_FULL = "Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP";
+const BRAZIL_TIME_ZONE = "America/Sao_Paulo";
 
 export type MailOrderItem = {
   item_short_id: string;
@@ -25,11 +26,22 @@ function brMoney(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function brDateTime(value: string | null | undefined): string {
+export function brDateTime(value: string | null | undefined): string {
   if (!value) return "";
+
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString("pt-BR");
+
+  return d.toLocaleString("pt-BR", {
+    timeZone: BRAZIL_TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 }
 
 function customerName(name: string | null | undefined): string {
@@ -37,15 +49,21 @@ function customerName(name: string | null | undefined): string {
 }
 
 function itemsText(items: MailOrderItem[]): string {
+  if (!items.length) return "• Itens do pedido";
   return items.map((item) => `• #${item.item_short_id} — ${item.item_title} — ${brMoney(Number(item.price) || 0)}`).join("\n");
 }
 
 function itemsHtml(items: MailOrderItem[]): string {
-  return `<ul>${items
-    .map(
-      (item) =>
-        `<li><strong>#${item.item_short_id}</strong> — ${escapeHtml(item.item_title)} — ${escapeHtml(brMoney(Number(item.price) || 0))}</li>`
-    )
+  const safeItems = items.length
+    ? items
+    : [{ item_short_id: "", item_title: "Itens do pedido", price: 0 } satisfies MailOrderItem];
+
+  return `<ul>${safeItems
+    .map((item) => {
+      const prefix = item.item_short_id ? `<strong>#${escapeHtml(item.item_short_id)}</strong> — ` : "";
+      const price = item.price ? ` — ${escapeHtml(brMoney(Number(item.price) || 0))}` : "";
+      return `<li>${prefix}${escapeHtml(item.item_title)}${price}</li>`;
+    })
     .join("")}</ul>`;
 }
 
@@ -62,10 +80,14 @@ function trackingUrl(order: MailOrder): string {
   return buildTrackingAbsoluteUrl(order.code, order.customer_whatsapp || "");
 }
 
+function orderDeadline(order: Pick<MailOrder, "pickup_deadline_at" | "expires_at">): string | null {
+  return order.pickup_deadline_at || order.expires_at || null;
+}
+
 export function buildOrderCreatedEmail(order: MailOrder, items: MailOrderItem[]) {
   const name = customerName(order.customer_name);
   const link = trackingUrl(order);
-  const deadline = order.pickup_deadline_at || order.expires_at;
+  const deadline = orderDeadline(order);
   const subject = `Bazar do Sementinha • Pedido ${order.code} criado com sucesso`;
 
   const text = [
@@ -111,7 +133,7 @@ export function buildOrderCreatedEmail(order: MailOrder, items: MailOrderItem[])
 export function buildReminderEmail(order: MailOrder, kind: "remind_8h" | "remind_16h", items: MailOrderItem[]) {
   const name = customerName(order.customer_name);
   const link = trackingUrl(order);
-  const deadline = order.expires_at || order.pickup_deadline_at;
+  const deadline = orderDeadline(order);
   const label = kind === "remind_8h" ? "Lembrete 8h" : "Lembrete 16h";
   const subject = `Bazar do Sementinha • ${label} do pedido ${order.code}`;
 

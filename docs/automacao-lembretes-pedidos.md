@@ -1,42 +1,23 @@
 # Automação de lembretes e cancelamento de pedidos
 
-Este pacote adiciona a rotina que processa:
+Esta rotina processa automaticamente os pedidos reservados do Bazar do Sementinha.
 
-- lembrete de 8h (`remind_8h`)
-- lembrete de 16h (`remind_16h`)
-- cancelamento após expiração (`cancel_24h`)
+## Regras
 
-Endpoint principal:
+- 8 horas após a criação do pedido: envia lembrete por e-mail, se o comprovante ainda não foi enviado.
+- 16 horas após a criação do pedido: envia segundo lembrete por e-mail, se o comprovante ainda não foi enviado.
+- No prazo de expiração do pedido, normalmente 24 horas após a criação: cancela o pedido, libera os itens para `available` e envia e-mail de cancelamento.
+- Se o pedido já estiver com comprovante enviado, pagamento confirmado, entregue ou cancelado, a automação não envia lembretes.
 
-```txt
-/api/cron/process-order-notifications
-```
+## Endpoint
 
-Para segurança, configure `CRON_SECRET` e chame o endpoint com:
+`GET /api/cron/process-order-notifications`
 
-```txt
-Authorization: Bearer SEU_CRON_SECRET
-```
+Header obrigatório:
 
-Exemplo de teste manual:
+`Authorization: Bearer <CRON_SECRET>`
 
-```powershell
-$env:CRON_SECRET="cole-aqui-o-mesmo-valor-do-vercel"
-Invoke-RestMethod `
-  -Uri "https://bazar-sementinha-izzg.vercel.app/api/cron/process-order-notifications?dry_run=1" `
-  -Headers @{ Authorization = "Bearer $env:CRON_SECRET" } `
-  -Method GET
-```
+## Teste seco
 
-Para execução real:
+Use `dry_run=1` para conferir o que seria processado sem enviar e-mails nem alterar pedidos.
 
-```powershell
-Invoke-RestMethod `
-  -Uri "https://bazar-sementinha-izzg.vercel.app/api/cron/process-order-notifications" `
-  -Headers @{ Authorization = "Bearer $env:CRON_SECRET" } `
-  -Method GET
-```
-
-## Observação sobre Vercel Hobby
-
-O projeto está no plano Hobby. Atualmente, o Cron nativo da Vercel no Hobby só executa uma vez por dia e não serve para lembretes de 8h/16h com precisão. Para lembretes automáticos no horário certo, use um agendador externo chamando esse endpoint a cada 10 ou 15 minutos, ou migre para um plano que permita cron mais frequente.
