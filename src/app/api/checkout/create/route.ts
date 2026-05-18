@@ -40,7 +40,6 @@ type Body = {
 
 const PIX_KEY = "58.392.598/0001-91";
 const PIX_FAVORED = "Templo de Umbanda Caboclo Sete Flexa";
-const SUPPORT_WA = "5519992360856";
 const PICKUP_LOCATION = "TUCXA2";
 
 function getErrorMessage(err: unknown): string {
@@ -69,13 +68,6 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
 }
 
-function formatBRL(value: number): string {
-  return value.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
 function makeCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let out = "ORD-";
@@ -89,17 +81,29 @@ function pickPaymentPlan(value: unknown): PaymentPlan {
   return "pix_now";
 }
 
+function addBusinessDays(referenceDate: Date, businessDays: number) {
+  const date = new Date(referenceDate.getTime());
+  let added = 0;
+
+  while (added < businessDays) {
+    date.setDate(date.getDate() + 1);
+    const day = date.getDay();
+    if (day !== 0 && day !== 6) added++;
+  }
+
+  return date;
+}
+
 function computeDeadlines(plan: PaymentPlan, referenceDate: Date) {
   const now = referenceDate;
   const hours24 = 24 * 60 * 60 * 1000;
-  const days15 = 15 * 24 * 60 * 60 * 1000;
 
   if (plan === "card_pickup_deposit") {
-    const pickupDeadline = new Date(now.getTime() + days15);
+    const pickupDeadline = addBusinessDays(now, 10);
     return {
       expiresAt: pickupDeadline,
       pickupDeadlineAt: pickupDeadline,
-      depositAmount: 10,
+      depositAmount: 1,
       depositRequired: true,
     };
   }
@@ -111,14 +115,6 @@ function computeDeadlines(plan: PaymentPlan, referenceDate: Date) {
     depositAmount: null as number | null,
     depositRequired: false,
   };
-}
-
-function whatsappUrlForOrder(code: string, total: number) {
-  const text =
-    `Olá! Pedido ${code} criado no Bazar do Sementinha. ` +
-    `Total: R$ ${formatBRL(total)}. ` +
-    `Vou enviar o comprovante do Pix aqui e combinar a retirada.`;
-  return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(text)}`;
 }
 
 function getPublicSiteUrl(): string {
@@ -353,7 +349,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: getErrorMessage(oiErr) }, { status: 500 });
     }
 
-    const reminderRows = buildOrderReminderRows(order.id as string, createdAt, plan);
+    const reminderRows = [
+      ...buildOrderReminderRows(order.id as string, createdAt, plan),
+      {
+        order_id: order.id as string,
+        kind: "cancel_24h",
+        due_at: expiresAt.toISOString(),
+      },
+    ];
     if (reminderRows.length > 0) {
       const { error: remindersErr } = await supabase.from("order_reminders").insert(reminderRows);
       if (remindersErr) {
@@ -474,7 +477,6 @@ export async function POST(req: Request) {
         })),
       },
       pix: { key: PIX_KEY, favored: PIX_FAVORED },
-      whatsapp_url: whatsappUrlForOrder(order.code as string, total),
       tracking: {
         url: trackingUrl,
       },

@@ -13,6 +13,7 @@ export const ADMIN_HELP_TOPICS = {
       "O Bazar Online funciona melhor quando todos seguem o mesmo padrão: cadastrar, revisar, etiquetar, guardar, publicar, vender, separar e entregar.",
     bullets: [
       "A identificação correta evita troca de itens, perda no estoque e dúvidas na retirada.",
+      "No checkout, o cliente deve escolher Pix do valor total ou Pix de R$ 1,00 para reserva e anexar o comprovante no próprio pedido.",
       "Cada item deve ter código curto, fotos, categoria, preço, localização física e QR/etiqueta.",
       "O manual do processo fica disponível para consulta pelos voluntários e administradores.",
       "Use a lista de itens como painel de controle: rascunho, disponível, reservado, vendido ou arquivado.",

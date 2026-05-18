@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AddToCartButton } from "@/components/AddToCartButton";
+import PixPaymentBox from "@/components/PixPaymentBox";
 
 type ItemStatus = "review" | "available" | "reserved" | "sold";
 type PaymentPlan = "pix_now" | "card_pickup_deposit";
@@ -40,7 +41,6 @@ type CreateOrderSuccess = {
     items: CreatedOrderItem[];
   };
   pix: { key: string; favored: string };
-  whatsapp_url: string;
   tracking: { url: string };
 };
 
@@ -51,9 +51,7 @@ const CUSTOMER_LS_KEY = "bazar_customer";
 const CUSTOMER_ACCESS_LS_KEY = "bazar_customer_access";
 const LAST_ORDER_SESSION_KEY = "bazar_last_order_summary";
 
-const PIX_KEY = "58.392.598/0001-91";
-const PIX_FAVORED = "Templo de Umbanda Caboclo Sete Flexa";
-const SUPPORT_WA = "5519992360856";
+const RESERVATION_PIX_AMOUNT = 1;
 
 function readCart(): string[] {
   if (typeof window === "undefined") return [];
@@ -100,7 +98,7 @@ function paymentPlanLabel(plan: PaymentPlan) {
     case "pix_now":
       return "Pix agora (valor total)";
     case "card_pickup_deposit":
-      return "Cartão na retirada (caução PIX R$ 10,00)";
+      return "Reservar com Pix R$ 1,00 + cartão na retirada";
     default:
       return "Forma de pagamento";
   }
@@ -108,42 +106,37 @@ function paymentPlanLabel(plan: PaymentPlan) {
 
 function paymentDeadlineText(order: CreateOrderSuccess["order"]) {
   if (order.payment_plan === "pix_now") {
-    const deadline = formatDateTime(order.expires_at);
-    return deadline
-      ? `Envie o comprovante do Pix em até 24 horas após a criação do pedido. Prazo limite estimado: ${deadline}.`
-      : "Envie o comprovante do Pix em até 24 horas após a criação do pedido.";
+    return "Comprovante anexado no fechamento da compra. A equipe confere e combina a retirada no Tucxa2.";
   }
 
   const deadline = formatDateTime(order.pickup_deadline_at);
-  const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
+  const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 1,00";
   return deadline
-    ? `Envie a caução de ${deposit} e combine a retirada em até 15 dias. Prazo limite estimado: ${deadline}.`
-    : `Envie a caução de ${deposit} e combine a retirada em até 15 dias.`;
+    ? `Reserva feita com Pix de ${deposit}. O pagamento no cartão deve ocorrer na retirada em até 10 dias úteis. Prazo estimado: ${deadline}.`
+    : `Reserva feita com Pix de ${deposit}. O pagamento no cartão deve ocorrer na retirada em até 10 dias úteis.`;
 }
 
 function paymentNextStepText(order: CreateOrderSuccess["order"]) {
   if (order.payment_plan === "pix_now") {
-    return "Use o botão abaixo para abrir o acompanhamento do pedido e enviar o comprovante do Pix no próprio site. Depois da conferência, a equipe combina a retirada no Tucxa2.";
+    return "Comprovante enviado junto com o pedido. Aguarde a conferência da equipe para confirmação do pagamento e retirada.";
   }
 
-  const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
-  return `Use o botão abaixo para abrir o acompanhamento do pedido e enviar o comprovante da caução de ${deposit} no próprio site. Depois da conferência, a equipe combina a retirada no Tucxa2.`;
+  const deposit = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 1,00";
+  return `Comprovante da reserva de ${deposit} enviado junto com o pedido. Depois da conferência, a equipe combina a retirada e o pagamento no cartão.`;
 }
 
 function shouldShowPixBox(order: CreateOrderSuccess["order"]) {
   return order.payment_plan === "pix_now" || order.payment_plan === "card_pickup_deposit";
 }
 
-function buildOrderWhatsappLink(order: CreateOrderSuccess["order"]) {
-  const totalBr = formatBRL(order.total);
-  const depositBr = typeof order.deposit_amount === "number" ? formatBRL(order.deposit_amount) : "R$ 10,00";
+function paymentAmountForPlan(plan: PaymentPlan, total: number) {
+  return plan === "card_pickup_deposit" ? RESERVATION_PIX_AMOUNT : total;
+}
 
-  const text =
-    order.payment_plan === "pix_now"
-      ? `Olá! Vou enviar agora o *print/comprovante do Pix* do pedido ${order.code}. Valor: ${totalBr}. Chave Pix: ${PIX_KEY} — ${PIX_FAVORED}.`
-      : `Olá! Vou enviar agora o *print/comprovante da caução Pix* do pedido ${order.code}. Valor da caução: ${depositBr}. Chave Pix: ${PIX_KEY} — ${PIX_FAVORED}.`;
-
-  return `https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent(text)}`;
+function paymentProofLabel(plan: PaymentPlan) {
+  return plan === "card_pickup_deposit"
+    ? "Comprovante do Pix de R$ 1,00 da reserva"
+    : "Comprovante do Pix do valor total";
 }
 
 function persistCustomer(data: {
@@ -196,11 +189,13 @@ export default function CheckoutClient() {
   const [email, setEmail] = useState("");
   const [optInMarketing, setOptInMarketing] = useState(false);
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("pix_now");
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
 
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<CreateOrderSuccess | null>(null);
 
   const total = useMemo(() => items.reduce((acc, it) => acc + (Number(it.price) || 0), 0), [items]);
+  const pixAmount = useMemo(() => paymentAmountForPlan(paymentPlan, total), [paymentPlan, total]);
 
   const purchasedShortIds = useMemo(
     () => (created?.ok ? created.order.items.map((it) => it.short_id) : []),
@@ -313,6 +308,11 @@ export default function CheckoutClient() {
       return;
     }
 
+    if (!paymentProofFile) {
+      setError("Anexe o comprovante do Pix para registrar a compra.");
+      return;
+    }
+
     setCreating(true);
 
     try {
@@ -337,6 +337,24 @@ export default function CheckoutClient() {
 
       const okData = data as CreateOrderSuccess;
 
+      const proofForm = new FormData();
+      proofForm.set("code", okData.order.code);
+      proofForm.set("whatsapp", whatsapp.trim());
+      proofForm.set("email", normalizeEmail(email));
+      proofForm.set("file", paymentProofFile);
+
+      const proofRes = await fetch("/api/public/orders/upload-payment-proof", {
+        method: "POST",
+        body: proofForm,
+      });
+      const proofData = (await proofRes.json().catch(() => ({}))) as { error?: string };
+      if (!proofRes.ok) {
+        throw new Error(
+          proofData?.error ||
+            `Pedido ${okData.order.code} criado, mas não foi possível anexar o comprovante. Abra o acompanhamento do pedido e tente enviar novamente.`
+        );
+      }
+
       persistCustomer({
         name: name.trim(),
         whatsapp: whatsapp.trim(),
@@ -353,6 +371,7 @@ export default function CheckoutClient() {
       }
 
       setCreated(okData);
+      setPaymentProofFile(null);
       writeCart([]);
       setItems([]);
       setCartSnapshot([]);
@@ -515,9 +534,7 @@ export default function CheckoutClient() {
                 <div>
                   <div className="font-semibold">Pix agora (valor total)</div>
                   <div className="text-sm text-neutral-600">
-                    Recomendado para garantir a reserva e acertar a retirada no Tucxa2 pelo WhatsApp.
-                    <br />
-                    Pedidos com pagamentos não realizados em até 24 horas após a criação deles serão automaticamente cancelados.
+                    Pague o valor total agora por Pix, anexe o comprovante abaixo e aguarde a conferência da equipe.
                   </div>
                 </div>
               </label>
@@ -532,41 +549,48 @@ export default function CheckoutClient() {
                   className="mt-1"
                 />
                 <div>
-                  <div className="font-semibold">Cartão na retirada (caução PIX R$ 10,00)</div>
+                  <div className="font-semibold">Pix de R$ 1,00 para reserva + cartão na retirada</div>
                   <div className="text-sm text-neutral-600">
-                    Prazo máximo de 15 dias para acertar a retirada no Tucxa2 pelo WhatsApp. O valor da caução será devolvido na retirada/pagamento.
+                    Pague R$ 1,00 por Pix para reservar. O restante é pago na retirada com cartão de crédito, em até 10 dias úteis.
                   </div>
                 </div>
               </label>
             </div>
 
-            <div className="mt-5 rounded-xl border bg-neutral-50 p-4">
-              <div className="font-semibold">Pix</div>
-              <div className="mt-1 text-sm text-neutral-700">{PIX_FAVORED}</div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <div className="rounded-lg border bg-white px-3 py-2 font-mono text-sm">{PIX_KEY}</div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(PIX_KEY);
-                  }}
-                  className="rounded-lg border px-3 py-2 text-sm hover:bg-white"
-                >
-                  Copiar chave
-                </button>
-              </div>
-              <div className="mt-2 text-sm text-neutral-600">
-                Após criar o pedido, você poderá acompanhar todos os seus pedidos em um só lugar.
-              </div>
+            <div className="mt-5">
+              <PixPaymentBox
+                amount={pixAmount}
+                txid="BAZARSEMENTINHA"
+                title={paymentPlan === "pix_now" ? "Pagar valor total no Pix" : "Reservar com Pix de R$ 1,00"}
+                subtitle={
+                  paymentPlan === "pix_now"
+                    ? "O QR Code e o Pix Copia e Cola já levam o valor total do pedido. Confira no app do banco antes de confirmar."
+                    : "O QR Code e o Pix Copia e Cola já levam o valor de R$ 1,00 para reserva."
+                }
+              />
+            </div>
+
+            <div className="mt-5 rounded-xl border bg-white p-4">
+              <div className="font-semibold">{paymentProofLabel(paymentPlan)}</div>
+              <label className="mt-3 block rounded-xl border border-dashed p-3 text-sm">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={(event) => setPaymentProofFile(event.target.files?.[0] ?? null)}
+                />
+              </label>
+              <p className="mt-2 text-xs text-neutral-600">
+                Obrigatório para registrar a compra. Pode ser comprovante Pix, recibo ou comprovante da maquininha. Limite: 8 MB.
+              </p>
             </div>
 
             <button
               type="button"
               onClick={() => void createOrder()}
-              disabled={creating}
+              disabled={creating || !paymentProofFile || items.length === 0}
               className="mt-5 w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
             >
-              {creating ? "Criando…" : "Criar pedido"}
+              {creating ? "Registrando…" : "Registrar compra e comprovante"}
             </button>
           </div>
         </>
@@ -578,10 +602,10 @@ export default function CheckoutClient() {
         <div className="font-semibold">Informações Importantes</div>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-neutral-700">
           <li>
-            Pagamento por <b>Pix</b> ou <b>Cartão de Crédito</b> (para cartão: fazer um Pix de <b>R$ 10,00</b> para reserva; o valor é devolvido no pagamento/retirada).
+            Pagamento por <b>Pix do valor total</b> ou <b>Pix de R$ 1,00 para reserva</b> com pagamento no cartão de crédito na retirada em até 10 dias úteis.
           </li>
           <li>
-            Retirada no <b>TUCXA2</b> (Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP) conforme data e horário combinado.
+            Retirada no <b>TUCXA2</b> (Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP) após conferência do comprovante e combinação com a equipe.
           </li>
           <li>
             <b>Não realizamos trocas.</b>
@@ -622,8 +646,6 @@ function OrderCompletionCard({
   const paymentLabel = paymentPlanLabel(order.payment_plan);
   const deadlineText = paymentDeadlineText(order);
   const nextStepText = paymentNextStepText(order);
-  const whatsappLink = buildOrderWhatsappLink(order);
-
   return (
     <div className="rounded-2xl border bg-white p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -662,19 +684,9 @@ function OrderCompletionCard({
 
         {shouldShowPixBox(order) && (
           <div className="mt-4 rounded-xl border bg-white p-4">
-            <div className="font-semibold">Pix</div>
-            <div className="mt-1 text-sm text-neutral-700">{PIX_FAVORED}</div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <div className="rounded-lg border bg-neutral-50 px-3 py-2 font-mono text-sm">{PIX_KEY}</div>
-              <button
-                type="button"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(PIX_KEY);
-                }}
-                className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
-              >
-                Copiar chave
-              </button>
+            <div className="font-semibold">Comprovante recebido ✅</div>
+            <div className="mt-1 text-sm text-neutral-700">
+              O comprovante foi anexado ao pedido. Aguarde a conferência da equipe para confirmação do pagamento/reserva.
             </div>
           </div>
         )}
@@ -705,21 +717,12 @@ function OrderCompletionCard({
           href={tracking.url}
           className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
         >
-          Enviar comprovante no pedido
+Acompanhar pedido
         </Link>
 
         <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
           Acessar meus pedidos
         </Link>
-
-        <a
-          href={whatsappLink}
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50"
-        >
-          Falar no WhatsApp
-        </a>
 
         <Link href="/" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
           Continuar comprando
