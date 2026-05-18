@@ -21,3 +21,8 @@ Header obrigatório:
 
 Use `dry_run=1` para conferir o que seria processado sem enviar e-mails nem alterar pedidos.
 
+
+
+## Checkout e comprovante
+
+O fechamento da compra usa Pix com valor preenchido: valor total ou Pix de R$ 1,00 para reserva e pagamento no cartão na retirada em até 10 dias úteis. O comprovante é anexado no próprio fechamento do pedido.

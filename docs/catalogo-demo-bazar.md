@@ -84,3 +84,8 @@ Arquivos de apoio:
 - Itens reservados devem exibir o pedido associado quando houver vínculo ativo.
 - Itens com pedido pago ou comprovante enviado não devem ser liberados manualmente para disponível.
 - Lembretes pendentes de pedidos com comprovante enviado, pagos, entregues ou cancelados ficam apenas como histórico e não devem ser enviados.
+
+
+## Checkout e comprovante
+
+O fechamento da compra usa Pix com valor preenchido: valor total ou Pix de R$ 1,00 para reserva e pagamento no cartão na retirada em até 10 dias úteis. O comprovante é anexado no próprio fechamento do pedido.

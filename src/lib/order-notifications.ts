@@ -104,7 +104,7 @@ export function buildOrderCreatedEmail(order: MailOrder, items: MailOrderItem[])
     "",
     `Acompanhe seu pedido: ${link}`,
     "",
-    "Se o pagamento for por Pix, envie o comprovante pela tela de acompanhamento do pedido. Depois da conferência, a equipe combina a retirada no Tucxa2.",
+    "O comprovante deve ser anexado no fechamento da compra/pedido. Depois da conferência, a equipe confirma o pagamento/reserva e combina a retirada no Tucxa2.",
     "",
     "Obrigado por apoiar o Bazar do Sementinha!",
   ]
@@ -123,7 +123,7 @@ export function buildOrderCreatedEmail(order: MailOrder, items: MailOrderItem[])
       <h3>Itens do pedido</h3>
       ${itemsHtml(items)}
       <p><a href="${escapeHtml(link)}">Clique aqui para acompanhar seu pedido</a></p>
-      <p>Se o pagamento for por Pix, envie o comprovante pela tela de acompanhamento do pedido. Depois da conferência, a equipe combina a retirada no Tucxa2.</p>
+      <p>O comprovante deve ser anexado no fechamento da compra/pedido. Depois da conferência, a equipe confirma o pagamento/reserva e combina a retirada no Tucxa2.</p>
       <p>Obrigado por apoiar o Bazar do Sementinha!</p>
     </div>`;
 
@@ -149,7 +149,7 @@ export function buildReminderEmail(order: MailOrder, kind: "remind_8h" | "remind
     "",
     `Acompanhe seu pedido: ${link}`,
     "",
-    "Após o pagamento, envie o comprovante pela tela de acompanhamento do pedido. A retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.",
+    "Se ainda houver pendência de comprovante, acesse o acompanhamento do pedido. A retirada é combinada pela equipe após a conferência do pagamento/reserva.",
     "",
     "Obrigado!",
   ]
@@ -166,7 +166,7 @@ export function buildReminderEmail(order: MailOrder, kind: "remind_8h" | "remind
       <h3>Itens do pedido</h3>
       ${itemsHtml(items)}
       <p><a href="${escapeHtml(link)}">Clique aqui para acompanhar seu pedido</a></p>
-      <p>Após o pagamento, envie o comprovante pela tela de acompanhamento do pedido. A retirada é no Tucxa2 — Rua Francisco de Assis Pupo, 390 — Vila Industrial — Campinas/SP.</p>
+      <p>Se ainda houver pendência de comprovante, acesse o acompanhamento do pedido. A retirada é combinada pela equipe após a conferência do pagamento/reserva.</p>
       <p>Obrigado!</p>
     </div>`;
 
