@@ -3,15 +3,15 @@ import { PUBLIC_PROCESS_COPY } from "@/lib/public-copy";
 
 export default function PublicHowItWorks() {
   return (
-    <section className="mt-6 rounded-3xl border bg-white p-5 shadow-sm">
+    <section className="mt-5 rounded-3xl border bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
       <div className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700">
         {PUBLIC_PROCESS_COPY.eyebrow}
       </div>
 
-      <div className="mt-3 grid gap-5 lg:grid-cols-[1.1fr_1fr] lg:items-start">
+      <div className="mt-3 grid gap-4 lg:grid-cols-[1.1fr_1fr] lg:items-start">
         <div className="min-w-0">
-          <h2 className="text-2xl font-extrabold tracking-tight text-slate-950">{PUBLIC_PROCESS_COPY.title}</h2>
-          <p className="mt-2 text-slate-600">{PUBLIC_PROCESS_COPY.description}</p>
+          <h2 className="text-2xl font-extrabold leading-tight tracking-tight text-slate-950 sm:text-3xl">{PUBLIC_PROCESS_COPY.title}</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600 sm:text-base">{PUBLIC_PROCESS_COPY.description}</p>
 
           <ul className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-3">
             {PUBLIC_PROCESS_COPY.trustBullets.map((bullet) => (
@@ -24,7 +24,7 @@ export default function PublicHowItWorks() {
           <div className="mt-5">
             <Link
               href="#catalogo"
-              className="inline-flex w-fit rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
+              className="inline-flex w-full justify-center rounded-full bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 sm:w-fit sm:py-2"
             >
               Contribuir agora
             </Link>

@@ -385,10 +385,10 @@ export default function CheckoutClient() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
+    <div className="space-y-5 pb-24 sm:space-y-6 sm:pb-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{isCompleted ? "Pedido finalizado" : "Finalizar pedido"}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{isCompleted ? "Pedido finalizado" : "Finalizar pedido"}</h1>
           <p className="mt-1 text-sm text-neutral-600">
             {isCompleted
               ? "Seu pedido foi criado com sucesso. Acompanhe o status e envie o comprovante pelo próprio pedido."
@@ -398,7 +398,7 @@ export default function CheckoutClient() {
 
         <Link
           href={isCompleted ? "/meus-pedidos" : "/carrinho"}
-          className="rounded-full border px-4 py-2 text-sm hover:bg-neutral-50"
+          className="inline-flex w-full justify-center rounded-full border bg-white px-4 py-2 text-sm font-semibold hover:bg-neutral-50 sm:w-auto"
         >
           {isCompleted ? "Meus pedidos" : "Voltar ao carrinho"}
         </Link>
@@ -414,8 +414,8 @@ export default function CheckoutClient() {
 
       {!isCompleted && (
         <>
-          <div className="rounded-xl border bg-white p-5">
-            <div className="flex items-start justify-between gap-3">
+          <div className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="font-semibold">Itens</div>
               <button
                 type="button"
@@ -435,7 +435,7 @@ export default function CheckoutClient() {
             ) : (
               <div className="mt-4 space-y-3">
                 {items.map((it) => (
-                  <div key={it.short_id} className="flex items-start justify-between gap-3 rounded-xl border p-4">
+                  <div key={it.short_id} className="flex flex-col gap-2 rounded-xl border p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                     <div>
                       <div className="font-semibold">
                         {it.title || "Item"} <span className="font-mono text-sm">#{it.short_id}</span>
@@ -462,8 +462,8 @@ export default function CheckoutClient() {
             )}
           </div>
 
-          <div className="rounded-xl border bg-white p-5">
-            <div className="flex items-start justify-between gap-3">
+          <div className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="font-semibold">Seus dados</div>
               </div>
@@ -476,7 +476,7 @@ export default function CheckoutClient() {
               </button>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-sm font-medium">Nome</label>
                 <input
@@ -518,11 +518,11 @@ export default function CheckoutClient() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-white p-5">
+          <div className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5">
             <div className="font-semibold">Como você prefere pagar?</div>
 
             <div className="mt-4 space-y-3">
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-4">
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition hover:bg-neutral-50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
                 <input
                   type="radio"
                   name="paymentPlan"
@@ -539,7 +539,7 @@ export default function CheckoutClient() {
                 </div>
               </label>
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-4">
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition hover:bg-neutral-50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50">
                 <input
                   type="radio"
                   name="paymentPlan"
@@ -570,13 +570,14 @@ export default function CheckoutClient() {
               />
             </div>
 
-            <div className="mt-5 rounded-xl border bg-white p-4">
+            <div className="mt-5 rounded-2xl border bg-white p-4">
               <div className="font-semibold">{paymentProofLabel(paymentPlan)}</div>
-              <label className="mt-3 block rounded-xl border border-dashed p-3 text-sm">
+              <label className="mt-3 block rounded-2xl border border-dashed bg-neutral-50 p-3 text-sm">
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp,application/pdf"
                   onChange={(event) => setPaymentProofFile(event.target.files?.[0] ?? null)}
+                  className="w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-sm file:font-semibold file:text-slate-900"
                 />
               </label>
               <p className="mt-2 text-xs text-neutral-600">
@@ -588,7 +589,7 @@ export default function CheckoutClient() {
               type="button"
               onClick={() => void createOrder()}
               disabled={creating || !paymentProofFile || items.length === 0}
-              className="mt-5 w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="mt-5 w-full rounded-2xl bg-emerald-600 px-4 py-3.5 font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
             >
               {creating ? "Registrando…" : "Registrar compra e comprovante"}
             </button>
@@ -598,7 +599,7 @@ export default function CheckoutClient() {
 
       <CompleteSelection currentCart={cartSnapshot} excludeShortIds={purchasedShortIds} />
 
-      <div className="rounded-xl border bg-white p-5">
+      <div className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5">
         <div className="font-semibold">Informações Importantes</div>
         <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-neutral-700">
           <li>
@@ -625,16 +626,16 @@ function OrderCompletionCard({
 }) {
   if (!created?.ok) {
     return (
-      <div className="rounded-xl border bg-white p-5">
+      <div className="rounded-2xl border bg-white p-4 shadow-sm sm:p-5">
         <div className="font-semibold">Pedido criado ✅</div>
         <div className="mt-2 text-sm text-neutral-700">
           Código: <span className="font-mono font-semibold">{okCode}</span>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+        <div className="mt-4 grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <Link href="/meus-pedidos" className="inline-flex justify-center rounded-xl border bg-white px-4 py-3 text-sm font-semibold hover:bg-neutral-50 sm:py-2">
             Ver meus pedidos
           </Link>
-          <Link href="/" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+          <Link href="/" className="inline-flex justify-center rounded-xl border bg-white px-4 py-3 text-sm font-semibold hover:bg-neutral-50 sm:py-2">
             Continuar comprando
           </Link>
         </div>
@@ -656,7 +657,7 @@ function OrderCompletionCard({
           </p>
         </div>
 
-        <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+        <Link href="/meus-pedidos" className="inline-flex justify-center rounded-xl border bg-white px-4 py-3 text-sm font-semibold hover:bg-neutral-50 sm:py-2">
           Ver meus pedidos
         </Link>
       </div>
@@ -712,19 +713,19 @@ function OrderCompletionCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-4 grid gap-2 sm:flex sm:flex-wrap sm:items-center">
         <Link
           href={tracking.url}
-          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
+          className="inline-flex justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 sm:py-2"
         >
 Acompanhar pedido
         </Link>
 
-        <Link href="/meus-pedidos" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+        <Link href="/meus-pedidos" className="inline-flex justify-center rounded-xl border bg-white px-4 py-3 text-sm font-semibold hover:bg-neutral-50 sm:py-2">
           Acessar meus pedidos
         </Link>
 
-        <Link href="/" className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
+        <Link href="/" className="inline-flex justify-center rounded-xl border bg-white px-4 py-3 text-sm font-semibold hover:bg-neutral-50 sm:py-2">
           Continuar comprando
         </Link>
       </div>
@@ -810,9 +811,9 @@ function CompleteSelection({
         </Link>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {filtered.map((it) => (
-          <div key={it.short_id} className="rounded-xl border p-4">
+          <div key={it.short_id} className="rounded-2xl border p-4">
             <div className="font-semibold">{it.title || "Item"}</div>
             <div className="mt-1 text-sm text-neutral-600">
               {(it.category || "").trim()}
@@ -820,11 +821,11 @@ function CompleteSelection({
               {(it.condition || "").trim()}
             </div>
 
-            <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
               <div className="font-semibold">{typeof it.price === "number" ? formatBRL(it.price) : ""}</div>
 
               <div className="flex items-center gap-2">
-                <Link href={`/i/${it.short_id}`} className="rounded-lg border px-3 py-1.5 text-sm hover:bg-neutral-50">
+                <Link href={`/i/${it.short_id}`} className="rounded-lg border px-3 py-2 text-sm hover:bg-neutral-50">
                   Ver
                 </Link>
 

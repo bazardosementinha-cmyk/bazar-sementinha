@@ -1,0 +1,12 @@
+DOT01/01.png — Diversos — foto 1
+DOT01/02.png — Diversos — foto 2
+DOT01/03.png — Diversos — foto 3
+DOT02/01.png — Colecionável — foto 1
+DOT02/02.png — Colecionável — foto 2
+DOT02/03.png — Colecionável — foto 3
+DOT03/01.png — Kit — foto 1
+DOT03/02.png — Kit — foto 2
+DOT03/03.png — Kit — foto 3
+DOT04/01.png — Item especial — foto 1
+DOT04/02.png — Item especial — foto 2
+DOT04/03.png — Item especial — foto 3
