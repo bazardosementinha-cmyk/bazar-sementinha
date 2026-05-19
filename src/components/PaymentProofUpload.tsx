@@ -87,7 +87,7 @@ export default function PaymentProofUpload({ code, token, contact, disabled, onU
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+    <form onSubmit={submit} className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm sm:p-5">
       <div className="font-semibold text-emerald-950">Enviar comprovante do Pix</div>
       <p className="mt-1 text-sm text-emerald-900">
         Após pagar o Pix, envie o comprovante aqui. O pedido ficará como <strong>Comprovante enviado</strong> até a conferência da equipe.
@@ -102,7 +102,7 @@ export default function PaymentProofUpload({ code, token, contact, disabled, onU
             accept="image/jpeg,image/png,image/webp,application/pdf"
             disabled={disabled || busy}
             onChange={onFileChange}
-            className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm disabled:opacity-60"
+            className="mt-1 w-full rounded-xl border bg-white px-3 py-2 text-sm disabled:opacity-60 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-emerald-900"
           />
           <p className="mt-1 text-xs text-emerald-800">Formatos aceitos: JPG, PNG, WEBP ou PDF. Limite: {MAX_MB} MB.</p>
         </div>
@@ -110,7 +110,7 @@ export default function PaymentProofUpload({ code, token, contact, disabled, onU
         <button
           type="submit"
           disabled={disabled || busy || !file}
-          className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+          className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 md:w-auto"
         >
           {busy ? "Enviando…" : "Enviar comprovante"}
         </button>

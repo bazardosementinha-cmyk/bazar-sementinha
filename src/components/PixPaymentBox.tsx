@@ -57,19 +57,19 @@ export default function PixPaymentBox({ amount, txid, title, subtitle }: PixPaym
   }
 
   return (
-    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
       <div className="text-xs font-black uppercase tracking-wide text-emerald-900">
         Use o QR Code ou Pix Copia e Cola com o valor preenchido
       </div>
-      <div className="mt-1 text-xl font-black text-emerald-950">{title || "Pagamento Pix"}</div>
+      <div className="mt-1 text-xl font-black leading-tight text-emerald-950 sm:text-2xl">{title || "Pagamento Pix"}</div>
       {subtitle && <p className="mt-1 text-sm text-emerald-900">{subtitle}</p>}
 
       <div className="mt-4 rounded-2xl border bg-white p-4">
         <div className="grid gap-4 md:grid-cols-[150px_1fr]">
-          <div className="flex min-h-[150px] items-center justify-center rounded-xl bg-emerald-50 p-2">
+          <div className="flex min-h-[180px] items-center justify-center rounded-xl bg-emerald-50 p-2 md:min-h-[150px]">
             {qrDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrDataUrl} alt="QR Code Pix" className="h-36 w-36" />
+              <img src={qrDataUrl} alt="QR Code Pix" className="h-44 w-44 md:h-36 md:w-36" />
             ) : (
               <span className="text-xs text-neutral-500">Gerando QR Code…</span>
             )}
@@ -79,18 +79,18 @@ export default function PixPaymentBox({ amount, txid, title, subtitle }: PixPaym
             <div className="text-xs font-black uppercase tracking-wide text-emerald-800">Pix com valor preenchido</div>
             <div className="mt-1 text-2xl font-black text-emerald-950">{formatBRL(amount)}</div>
             <div className="mt-1 text-xs text-neutral-600">Chave: {PIX_KEY} · Tucxa</div>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap">
               <button
                 type="button"
                 onClick={() => void copy(pixPayload)}
-                className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800"
+                className="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-800 sm:py-2"
               >
                 Copiar Pix Copia e Cola
               </button>
               <button
                 type="button"
                 onClick={() => void copy(PIX_KEY)}
-                className="rounded-lg border px-3 py-2 text-sm font-semibold hover:bg-neutral-50"
+                className="rounded-xl border bg-white px-4 py-3 text-sm font-semibold hover:bg-neutral-50 sm:py-2"
               >
                 Copiar chave
               </button>
@@ -99,7 +99,7 @@ export default function PixPaymentBox({ amount, txid, title, subtitle }: PixPaym
             <textarea
               readOnly
               value={pixPayload}
-              className="mt-3 h-24 w-full rounded-lg border bg-neutral-50 p-2 font-mono text-xs text-neutral-700"
+              className="mt-3 h-28 w-full rounded-xl border bg-neutral-50 p-3 font-mono text-xs text-neutral-700"
             />
           </div>
         </div>
